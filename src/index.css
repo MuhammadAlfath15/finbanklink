@@ -1,1 +1,5 @@
 @import "tailwindcss";
+
+.clip-path-figma-soft {
+  clip-path: polygon(0 0, 100% 0, 100% 30%, 0 70%);
+}

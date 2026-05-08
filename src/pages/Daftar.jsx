@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { register } from '../services/api';
 
 function Daftar() {
   const [step, setStep] = useState(1);
@@ -50,8 +50,12 @@ function Daftar() {
       valid = false;
     }
 
-    if (formData.password.length < 8) {
-      newErrors.password = "Password minimal harus 8 karakter!";
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$/;
+    if (!formData.password) {
+      newErrors.password = "Password wajib diisi!";
+      valid = false;
+    } else if (!passwordRegex.test(formData.password)) {
+      newErrors.password = "Password min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!";
       valid = false;
     }
 
@@ -79,20 +83,14 @@ function Daftar() {
     }
 
     try {
-      const response = await axios.post('http://localhost:8000/api/register', formData);
+      await register(formData.name, formData.email, formData.password);
 
-      console.log("Respon Berhasil:", response.data);
-
-      // Laravel mengembalikan 201 untuk 'Created' atau 200 untuk 'OK'
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Pendaftaran Berhasil!");
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-      }
+      toast.success('Pendaftaran Berhasil!');
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
     } catch (error) {
-      console.error("Error Lengkap:", error);
-      const pesanError = error.response?.data?.message || "Terjadi kesalahan pada server";
+      const pesanError = error.response?.data?.message || error.message || 'Terjadi kesalahan pada server';
       toast.error(pesanError);
     }
   };

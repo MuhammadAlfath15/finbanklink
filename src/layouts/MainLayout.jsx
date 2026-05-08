@@ -14,7 +14,7 @@ const MainLayout = () => {
       {role !== 'bank' && <Sidebar />}
 
       {/* Konten Utama */}
-      <main className={`flex-1 px-10 ${role === 'bank' ? 'pt-10' : 'pt-13'}`}>
+      <main className={`flex-1 px-10 ${role === 'bank' ? 'pt-6' : 'pt-6'}`}>
         <div className="bg-white rounded-[40px] shadow-lg p-10 min-h-[70vh] mb-10">
           <Outlet />
         </div>

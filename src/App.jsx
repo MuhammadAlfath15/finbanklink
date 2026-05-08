@@ -7,9 +7,13 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import CariModal from './pages/CariModal';
 import KesehatanBisnis from './pages/KesehatanBisnis';
+import UpdateBisnis from './pages/UpdateBisnis';
 import Riwayat from './pages/Riwayat';
 import Profile from './pages/Profile';
-import BankDashboard from './pages/BankDashboard'; // Pastiin lu buat file dummy ini nanti
+import BankDashboard from './pages/BankDashboard';
+import AjukanPinjaman from './pages/AjukanPinjaman';
+import VerifikasiOTP from './pages/VerifikasiOTP';
+import PengajuanFlow from './pages/PengajuanFlow';
 import './App.css';
 import { Toaster } from 'react-hot-toast';
 
@@ -83,6 +87,31 @@ function App() {
           } />
 
         </Route>
+
+        {/* Halaman Pengajuan & Verifikasi OTP — tanpa navbar/MainLayout */}
+        <Route path="/ajukan-pinjaman" element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <AjukanPinjaman />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/verifikasi-otp" element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <VerifikasiOTP />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/pengajuan-flow" element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <PengajuanFlow />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/update-bisnis" element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <UpdateBisnis />
+          </ProtectedRoute>
+        } />
 
         {/* Kalau rute gak ketemu, lempar ke login */}
         <Route path="*" element={<Navigate to="/" />} />

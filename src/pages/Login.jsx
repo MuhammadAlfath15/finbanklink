@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { login } from '../services/api';
 import '../index.css';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,44 +8,38 @@ function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
  
   const handleLogin = async (e) => {
     e.preventDefault();
-    setErrorMessage(''); // Reset error message tiap pencet tombol
-    console.log("TOMBOL LOGIN DIPENCET!");
+    setErrorMessage('');
+    setLoading(true);
+    console.log('TOMBOL LOGIN DIPENCET!');
 
     try {
-      console.log("Mencoba kirim data ke Laravel...");
-      const response = await axios.post('http://localhost:8000/api/login', {
-        // GANTI 'email' JADI 'namaBisnis' karena itu nama statemu!
-        // Tapi di Laravel pastikan dia nerima field 'email' atau sesuaikan kodenya
-        email: namaBisnis, 
-        password: password
-      });
+      const data = await login(namaBisnis, password);
 
-      console.log("Berhasil dapet respon:", response.data);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
+      }
 
-      // Ganti baris 29 sampai 35 di screenshot lu dengan ini:
-if (response.status === 200) {
-    // 1. Simpan Token dan Role ke LocalStorage
-    if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('role', response.data.role); // Simpan role 'bank' atau 'user'
-    }
-
-    alert("Login Berhasil!");
-
-    // 2. Logika Pengalihan (Redirect) berdasarkan Role
-    if (response.data.role === 'bank') {
-        navigate('/bank-dashboard'); // Jika bank, ke dashboard bank
-    } else {
-        navigate('/dashboard');      // Jika user, ke dashboard biasa
-    }
-}
+      if (data.role === 'bank') {
+        navigate('/bank-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
-      console.error("ADA ERROR PAS KIRIM DATA:", error);
-      setErrorMessage(error.response?.data?.message || "Email atau Password salah!");
+      console.error('Login error:', error);
+      const msg =
+        error.response?.data?.message ||
+        (error.code === 'ERR_NETWORK' ? 'Tidak dapat terhubung ke server. Pastikan backend aktif.' : null) ||
+        error.message ||
+        'Email atau Password salah!';
+      setErrorMessage(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -127,9 +121,18 @@ if (response.status === 200) {
 
             <button
               type="submit"
-              className="w-full bg-blue-500 text-white py-4 rounded-full font-bold text-xl shadow-lg hover:bg-blue-600 transition-all"
+              disabled={loading}
+              className="w-full bg-blue-500 text-white py-4 rounded-full font-bold text-xl shadow-lg hover:bg-blue-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Login
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Memproses...
+                </>
+              ) : 'Login'}
             </button>
           </form>
 

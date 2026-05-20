@@ -23,10 +23,13 @@ function Login() {
       if (data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
+        localStorage.removeItem('active_submission');
       }
 
       if (data.role === 'bank') {
         navigate('/bank-dashboard');
+      } else if (data.role === 'admin') {
+        navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
@@ -66,6 +69,9 @@ function Login() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8">
         <div className="w-full max-w-md">
           <h2 className="text-5xl font-bold text-center mb-12 text-gray-800">Login</h2>
+          <p className="text-center text-sm text-gray-500 mb-4">
+            Admin? <span className="font-semibold text-blue-600 cursor-pointer" onClick={() => navigate('/admin/login')}>Masuk di sini</span>
+          </p>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <input

@@ -7,12 +7,22 @@ const formatRp = (n) =>
   'Rp ' + Math.round(n).toLocaleString('id-ID');
 
 const getBankStyle = (name = '') => {
-  if (name.includes('BCA'))    return { cardBg: 'bg-[#E3F2FD]', accent: 'from-[#1A569C] to-transparent', textMain: 'text-[#0D47A1]' };
-  if (name.includes('Mandiri'))return { cardBg: 'bg-[#FFFDE7]', accent: 'from-[#FBC02D] to-transparent', textMain: 'text-[#7F6D00]' };
-  if (name.includes('BRI'))    return { cardBg: 'bg-[#FFF3E0]', accent: 'from-[#E65100] to-transparent', textMain: 'text-[#BF360C]' };
-  if (name.includes('BNI'))    return { cardBg: 'bg-[#F3E5F5]', accent: 'from-[#6A1B9A] to-transparent', textMain: 'text-[#4A148C]' };
-  if (name.includes('BTN'))    return { cardBg: 'bg-[#E8F5E9]', accent: 'from-[#1B5E20] to-transparent', textMain: 'text-[#1B5E20]' };
-  return { cardBg: 'bg-[#E8F5E9]', accent: 'from-[#2ECC71] to-transparent', textMain: 'text-[#1B5E20]' };
+  if (name.includes('BCA Syariah')) return { cardBg: 'bg-[#EFF6FF]', accent: 'from-[#3B82F6] to-transparent', textMain: 'text-[#1D4ED8]' };
+  if (name.includes('Mega Syariah')) return { cardBg: 'bg-[#FFFBEB]', accent: 'from-[#F59E0B] to-transparent', textMain: 'text-[#B45309]' };
+  if (name.includes('BCA'))    return { cardBg: 'bg-[#E3F2FD]', accent: 'from-[#1E56A0] to-transparent', textMain: 'text-[#1E56A0]' };
+  if (name.includes('Mandiri'))return { cardBg: 'bg-[#FEFCE8]', accent: 'from-[#EAB308] to-transparent', textMain: 'text-[#A16207]' };
+  if (name.includes('BNI'))    return { cardBg: 'bg-[#FFF7ED]', accent: 'from-[#FF9A3E] to-transparent', textMain: 'text-[#C2410C]' };
+  if (name.includes('BRI'))    return { cardBg: 'bg-[#F0F9FF]', accent: 'from-[#01579B] to-transparent', textMain: 'text-[#01579B]' };
+  if (name.includes('BSI'))    return { cardBg: 'bg-[#F0FDFA]', accent: 'from-[#43C6AC] to-transparent', textMain: 'text-[#0F766E]' };
+  if (name.includes('BTN'))    return { cardBg: 'bg-[#F8FAFC]', accent: 'from-[#64748B] to-transparent', textMain: 'text-[#334155]' };
+  if (name.includes('CIMB'))   return { cardBg: 'bg-[#FEF2F2]', accent: 'from-[#DC2626] to-transparent', textMain: 'text-[#991B1B]' };
+  if (name.includes('Danamon'))return { cardBg: 'bg-[#FFF7ED]', accent: 'from-[#F97316] to-transparent', textMain: 'text-[#C2410C]' };
+  if (name.includes('Mega'))   return { cardBg: 'bg-[#FEFCE8]', accent: 'from-[#EAB308] to-transparent', textMain: 'text-[#A16207]' };
+  if (name.includes('OCBC'))   return { cardBg: 'bg-[#FFF1F2]', accent: 'from-[#E11D48] to-transparent', textMain: 'text-[#9F1239]' };
+  if (name.includes('Panin'))  return { cardBg: 'bg-[#EEF2FF]', accent: 'from-[#4F46E5] to-transparent', textMain: 'text-[#3730A3]' };
+  if (name.includes('Muamalat')) return { cardBg: 'bg-[#FAF5FF]', accent: 'from-[#7E22CE] to-transparent', textMain: 'text-[#6B21A8]' };
+  if (name.includes('BTPN')) return { cardBg: 'bg-[#F7FEE7]', accent: 'from-[#65A30D] to-transparent', textMain: 'text-[#4D7C0F]' };
+  return { cardBg: 'bg-[#F8FAFC]', accent: 'from-[#64748B] to-transparent', textMain: 'text-[#334155]' };
 };
 
 // ── Detail Modal ────────────────────────────────────────────────────────────
@@ -251,7 +261,7 @@ const BankList = () => {
                 <div className="grid grid-cols-2 gap-x-4 mb-2">
                   <div className="space-y-0.5">
                     <p className="text-[10px] text-gray-500 uppercase font-bold">Bunga</p>
-                    <p className="text-[13px] font-semibold text-gray-900">{bank.bunga} / Bulan</p>
+                    <p className="text-[13px] font-semibold text-gray-900">{bank.bunga_persen}% / Bln</p>
                   </div>
                   <div className="space-y-0.5 text-right md:text-left">
                     <p className="text-[10px] text-gray-500 uppercase font-bold">Cicilan</p>

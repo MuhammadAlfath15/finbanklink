@@ -4,6 +4,8 @@ import {
   ArrowLeft, Camera, CheckCircle2, AlertTriangle,
   Edit2, Loader2, RefreshCw, ChevronDown,
 } from 'lucide-react';
+import { createSubmission } from '../services/api';
+import toast from 'react-hot-toast';
 
 /* ─────────── helpers ─────────── */
 const fmt = (n) =>
@@ -25,25 +27,25 @@ const Stepper = ({ current }) => (
         <React.Fragment key={idx}>
           <div className="flex flex-col items-center" style={{ width: 90 }}>
             <div
-              className="w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all duration-300"
-              style={{
-                borderColor: done || active ? '#2563eb' : '#d1d5db',
-                background: done ? '#2563eb' : 'white',
-              }}
+              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                done || active ? 'border-blue-600 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600'
+              } ${done ? 'bg-blue-600 dark:bg-blue-500' : 'bg-white dark:bg-slate-800'}`}
             >
               {done
                 ? <CheckCircle2 size={16} color="white" />
-                : <span className="text-sm font-bold" style={{ color: active ? '#2563eb' : '#9ca3af' }}>{idx}</span>
+                : <span className={`text-sm font-bold ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'}`}>{idx}</span>
               }
             </div>
-            <p className="text-[11px] font-semibold mt-1 text-center leading-tight whitespace-pre-line"
-              style={{ color: active || done ? '#2563eb' : '#9ca3af' }}>
+            <p className={`text-[11px] font-semibold mt-1 text-center leading-tight whitespace-pre-line ${
+              active || done ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'
+            }`}>
               {label}
             </p>
           </div>
           {i < STEPS.length - 1 && (
-            <div className="flex-1 h-0.5 mt-4 transition-all duration-300"
-              style={{ background: current > idx ? '#2563eb' : '#e5e7eb' }} />
+            <div className={`flex-1 h-0.5 mt-4 transition-all duration-300 ${
+              current > idx ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-slate-700'
+            }`} />
           )}
         </React.Fragment>
       );
@@ -57,13 +59,9 @@ const UploadBox = ({ preview, onChange, label, disabled }) => {
   return (
     <div
       onClick={() => !disabled && ref.current?.click()}
-      className="relative rounded-2xl border-2 border-dashed overflow-hidden transition-all duration-200"
-      style={{
-        borderColor: preview ? '#2563eb' : '#cbd5e1',
-        background: preview ? 'transparent' : '#f8fafc',
-        minHeight: 160,
-        cursor: disabled ? 'default' : 'pointer',
-      }}
+      className={`relative rounded-2xl border-2 border-dashed overflow-hidden transition-all duration-200 min-h-[160px] ${
+        preview ? 'border-blue-600 bg-transparent' : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50'
+      } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
       <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onChange} disabled={disabled} />
       {preview ? (
@@ -259,37 +257,53 @@ const PengajuanFlow = () => {
 
   /* ── Submit ── */
   const handleSubmit = async () => {
-    if (!nibFile || submitting) return;
+    if (!nibFile || !ktpFile || submitting) return;
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const fd = new FormData();
+      fd.append('bank_id', String(bank.id));
+      fd.append('nominal_pinjaman', String(loanAmount));
+      fd.append('tenor', String(tenor));
+      fd.append('cicilan_per_bulan', String(Math.round(monthly)));
+      fd.append('ktp_nama', ktp.nama);
+      fd.append('ktp_nik', ktp.nik);
+      fd.append('pemohon_alamat', ktp.alamat || '');
+      fd.append('ktp', ktpFile);
+      fd.append('nib', nibFile);
 
-    // Simpan data pengajuan ke localStorage
-    const submission = {
-      id: 'PRO-' + Date.now(),
-      bank_id:      bank.id,
-      nama_bank:    bank.nama_bank,
-      nama_produk:  bank.nama_produk,
-      bunga:        bank.bunga,
-      bunga_persen: bank.bunga_persen,
-      nominal:      loanAmount,
-      tenor,
-      cicilan:      monthly,
-      status:       'DOKUMEN TERKIRIM',
-      submitted_at: new Date().toISOString(),
-      timeline: [
-        { label: 'Dokumen Terkirim', done: true,  date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) },
-        { label: 'Verifikasi Data Sistem', done: false, date: null },
-        { label: 'Survei Lokasi oleh Bank', done: false, date: null },
-        { label: 'Analisis Kredit Final',   done: false, date: null },
-        { label: 'Penandatanganan Akad',    done: false, date: null },
-      ],
-    };
-    localStorage.setItem('active_submission', JSON.stringify(submission));
+      const res = await createSubmission(fd);
+      const ref = res.data?.reference_code ?? res.reference_code ?? `REQ-${Date.now()}`;
 
-    setSubmitting(false);
-    setSubmitted(true);
-    // Auto-navigate ke riwayat setelah 1.8s
-    setTimeout(() => navigate('/riwayat'), 1800);
+      const submission = {
+        id: ref,
+        bank_id: bank.id,
+        nama_bank: bank.nama_bank,
+        nama_produk: bank.nama_produk,
+        bunga: bank.bunga,
+        bunga_persen: bank.bunga_persen,
+        nominal: loanAmount,
+        tenor,
+        cicilan: monthly,
+        status: 'Menunggu',
+        submitted_at: new Date().toISOString(),
+        timeline: [
+          { label: 'Pengajuan terkirim ke bank', done: true, date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) },
+          { label: 'Verifikasi bank', done: false, date: null },
+          { label: 'Survei / analisis kredit', done: false, date: null },
+          { label: 'Keputusan akhir', done: false, date: null },
+        ],
+      };
+      localStorage.setItem('active_submission', JSON.stringify(submission));
+
+      setSubmitted(true);
+      toast.success('Pengajuan berhasil dikirim ke bank.');
+      setTimeout(() => navigate('/riwayat'), 1800);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Gagal mengirim pengajuan.';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   /* ══ RENDER ══ */
@@ -305,7 +319,7 @@ const PengajuanFlow = () => {
       {/* OCR overlays */}
       <OcrOverlay status={ocrStatus} onRetry={handleRetryOcr} onManual={handleManualInput} />
 
-      <div className="min-h-screen flex flex-col" style={{ background: '#f0f4ff' }}>
+      <div className="min-h-screen flex flex-col bg-[#f0f4ff] dark:bg-slate-900">
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 sticky top-0 z-10"
@@ -321,8 +335,7 @@ const PengajuanFlow = () => {
 
         {/* Content */}
         <div className="flex-1 flex items-start justify-center px-4 py-6">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 fade-up"
-            style={{ boxShadow: '0 8px 40px rgba(59,130,246,.12)' }}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md p-6 fade-up shadow-[0_8px_40px_rgba(59,130,246,0.12)] dark:shadow-none"
             key={step}>
 
             <Stepper current={step} />
@@ -345,10 +358,11 @@ const PengajuanFlow = () => {
                 <button
                   onClick={runOcr}
                   disabled={!ktpFile || ocrStatus === 'processing'}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95"
-                  style={ktpFile
-                    ? { background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 4px 16px rgba(59,130,246,.35)' }
-                    : { background: '#d1d5db', cursor: 'not-allowed' }}>
+                  className={`w-full py-4 rounded-2xl font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95 ${
+                    ktpFile && ocrStatus !== 'processing'
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.35)]'
+                      : 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
+                  }`}>
                   Verifikasi
                 </button>
               </>
@@ -391,10 +405,11 @@ const PengajuanFlow = () => {
                 <button
                   onClick={() => { setStep(3); setIsEditing(false); }}
                   disabled={!ktp.nama || !ktp.nik}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95"
-                  style={(ktp.nama && ktp.nik)
-                    ? { background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 4px 16px rgba(59,130,246,.35)' }
-                    : { background: '#d1d5db', cursor: 'not-allowed' }}>
+                  className={`w-full py-4 rounded-2xl font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95 ${
+                    (ktp.nama && ktp.nik)
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.35)]'
+                      : 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
+                  }`}>
                   Konfirmasi
                 </button>
               </>
@@ -404,17 +419,16 @@ const PengajuanFlow = () => {
             {step === 3 && !submitted && (
               <>
                 {/* Bank Summary Card */}
-                <div className="rounded-2xl p-4 mb-5"
-                  style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1px solid #bfdbfe' }}>
-                  <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-3">Ringkasan Pengajuan</p>
+                <div className="rounded-2xl p-4 mb-5 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 dark:from-slate-800 dark:to-slate-700 dark:border-slate-600">
+                  <p className="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-3">Ringkasan Pengajuan</p>
                   {[
                     ['Nama Bank', bank.nama_bank],
                     ['Nama Produk', bank.nama_produk],
                     ['Suku Bunga', `${bank.bunga_persen}% flat/bulan`],
                   ].map(([l, v]) => (
                     <div key={l} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-500">{l}</span>
-                      <span className="font-bold text-gray-800">{v}</span>
+                      <span className="text-gray-500 dark:text-gray-400">{l}</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -456,16 +470,15 @@ const PengajuanFlow = () => {
                 </div>
 
                 {/* Calculated Summary */}
-                <div className="rounded-2xl p-4 mb-5"
-                  style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <div className="rounded-2xl p-4 mb-5 bg-green-50 border border-green-200 dark:bg-slate-800 dark:border-slate-600">
                   {[
                     ['Pinjaman', fmt(loanAmount)],
                     ['Tenor', `${tenor} Bulan`],
                     ['Estimasi Cicilan', fmt(monthly) + '/bulan'],
                   ].map(([l, v]) => (
                     <div key={l} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-500">{l}</span>
-                      <span className="font-bold text-gray-800">{v}</span>
+                      <span className="text-gray-500 dark:text-gray-400">{l}</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -482,11 +495,12 @@ const PengajuanFlow = () => {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!nibFile || submitting}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-                  style={nibFile && !submitting
-                    ? { background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 4px 16px rgba(59,130,246,.35)' }
-                    : { background: '#d1d5db', cursor: 'not-allowed' }}>
+                  disabled={!nibFile || !ktpFile || submitting}
+                  className={`w-full py-4 rounded-2xl font-bold text-[15px] mt-5 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 ${
+                    nibFile && ktpFile && !submitting
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.35)]'
+                      : 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
+                  }`}>
                   {submitting
                     ? <><Loader2 size={18} className="animate-spin" /> Mengirim...</>
                     : 'Ajukan'}

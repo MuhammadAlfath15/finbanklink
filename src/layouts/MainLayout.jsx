@@ -11,7 +11,7 @@ const MainLayout = () => {
           Hanya tampilkan Sidebar jika role-nya BUKAN bank.
           Kalau role-nya bank, navbar/sidebar ini hilang total.
       */}
-      {role !== 'bank' && <Sidebar />}
+      {role === 'user' && <Sidebar />}
 
       {/* Konten Utama */}
       <main className={`flex-1 px-10 ${role === 'bank' ? 'pt-6' : 'pt-6'}`}>

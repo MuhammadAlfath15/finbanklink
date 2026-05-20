@@ -23,9 +23,9 @@ const OtpBox = ({ value, inputRef, onChange, onKeyDown, onPaste, shake, disabled
       'transition-all duration-150 select-none',
       shake ? 'animate-shake border-red-400 bg-red-50 text-red-600' : '',
       value && !shake
-        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md shadow-blue-100'
+        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shadow-md shadow-blue-100 dark:shadow-none'
         : !shake
-        ? 'border-gray-200 bg-white text-gray-900 focus:border-blue-400 focus:shadow-md focus:shadow-blue-50'
+        ? 'border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:border-blue-400 focus:shadow-md focus:shadow-blue-50 dark:focus:shadow-none'
         : '',
       disabled ? 'opacity-50 cursor-not-allowed' : '',
     ].join(' ')}
@@ -196,7 +196,7 @@ const VerifikasiOTP = () => {
         .success-pop { animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       `}</style>
 
-      <div className="min-h-screen flex flex-col" style={{ background: '#f0f4ff' }}>
+      <div className="min-h-screen flex flex-col bg-[#f0f4ff] dark:bg-slate-900">
 
         {/* ── Header ── */}
         <div
@@ -220,8 +220,7 @@ const VerifikasiOTP = () => {
         {/* ── Content ── */}
         <div className="flex-1 flex items-start justify-center px-4 py-8">
           <div
-            className="bg-white rounded-3xl w-full max-w-md fade-in-up"
-            style={{ boxShadow: '0 8px 40px rgba(59,130,246,0.12)', padding: '2rem' }}
+            className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md fade-in-up p-8 shadow-[0_8px_40px_rgba(59,130,246,0.12)] dark:shadow-none"
           >
 
             {status === 'success' ? (
@@ -327,19 +326,11 @@ const VerifikasiOTP = () => {
                   id="btn-verifikasi-otp"
                   onClick={handleVerify}
                   disabled={!canVerify}
-                  className="w-full py-4 rounded-2xl text-white text-[15px] font-bold tracking-wide transition-all duration-200"
-                  style={
+                  className={`w-full py-4 rounded-2xl text-[15px] font-bold tracking-wide transition-all duration-200 ${
                     canVerify
-                      ? {
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          boxShadow: '0 4px 16px rgba(59,130,246,0.35)',
-                          transform: 'scale(1)',
-                        }
-                      : {
-                          background: '#d1d5db',
-                          cursor: 'not-allowed',
-                        }
-                  }
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.35)]'
+                      : 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed'
+                  }`}
                   onMouseEnter={(e) => { if (canVerify) e.currentTarget.style.transform = 'scale(1.01)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >

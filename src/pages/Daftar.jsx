@@ -50,7 +50,7 @@ function Daftar() {
       valid = false;
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     if (!formData.password) {
       newErrors.password = "Password wajib diisi!";
       valid = false;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 import Daftar from './pages/Daftar';
 import LupaPassword from './pages/LupaPassword';
 import MainLayout from './layouts/MainLayout';
@@ -14,6 +15,7 @@ import BankDashboard from './pages/BankDashboard';
 import AjukanPinjaman from './pages/AjukanPinjaman';
 import VerifikasiOTP from './pages/VerifikasiOTP';
 import PengajuanFlow from './pages/PengajuanFlow';
+import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 import { Toaster } from 'react-hot-toast';
 
@@ -21,14 +23,18 @@ import { Toaster } from 'react-hot-toast';
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('role');
+  const defaultRouteByRole = {
+    admin: '/admin/dashboard',
+    bank: '/bank-dashboard',
+    user: '/dashboard',
+  };
 
   if (!token) {
     return <Navigate to="/" />;
   }
 
   if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Kalau role gak sesuai (misal user mau nembak dashboard bank), balikin ke dashboard biasa
-    return <Navigate to="/dashboard" />;
+    return <Navigate to={defaultRouteByRole[userRole] || '/'} />;
   }
 
   return children;
@@ -41,6 +47,7 @@ function App() {
       <Routes>
         {/* Halaman Publik */}
         <Route path="/" element={<Login />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/daftar" element={<Daftar />} />
         <Route path="/lupa password" element={<LupaPassword />} /> {/* UDAH GAK PAKE SPASI */}
 
@@ -81,12 +88,19 @@ function App() {
 
           {/* Rute yang bisa diakses SEMUA role yang sudah login */}
           <Route path="/profile" element={
-            <ProtectedRoute allowedRoles={['user', 'bank']}>
+            <ProtectedRoute allowedRoles={['user', 'bank', 'admin']}>
               <Profile />
             </ProtectedRoute>
           } />
 
         </Route>
+
+        {/* Rute khusus ADMIN (Full Screen layout) */}
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
 
         {/* Halaman Pengajuan & Verifikasi OTP — tanpa navbar/MainLayout */}
         <Route path="/ajukan-pinjaman" element={

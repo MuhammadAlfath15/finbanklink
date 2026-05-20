@@ -6,32 +6,36 @@ import { sendLoanOtp } from '../services/api';
 /* ─────────────────────────────────────────────
    OTP Bottom-Sheet Modal
 ───────────────────────────────────────────── */
-const OtpModal = ({ onConfirm, onOtherWay, onCancel }) => {
-  const [visible, setVisible] = useState(false);
-
-  // slide-up animation on mount
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 30);
-    return () => clearTimeout(t);
-  }, []);
-
+const OtpModal = ({ onConfirm, onOtherWay, onCancel, loading, error }) => {
   return (
     <>
+      <style>{`
+        @keyframes backdropFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes sheetSlideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        .animate-backdrop-fade-in {
+          animation: backdropFadeIn 0.3s ease-out forwards;
+        }
+        .animate-sheet-slide-up {
+          animation: sheetSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 transition-opacity duration-300"
-        style={{
-          background: 'rgba(0,0,0,0.45)',
-          opacity: visible ? 1 : 0,
-        }}
+        className="fixed inset-0 z-40 bg-black/45 animate-backdrop-fade-in"
         onClick={onCancel}
       />
 
       {/* Sheet */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 transition-transform duration-400 ease-out"
+        className="fixed bottom-0 left-0 right-0 z-50 animate-sheet-slide-up"
         style={{
-          transform: visible ? 'translateY(0)' : 'translateY(100%)',
           maxWidth: '640px',
           margin: '0 auto',
         }}
@@ -82,19 +86,43 @@ const OtpModal = ({ onConfirm, onOtherWay, onCancel }) => {
             <h2 className="text-center text-[18px] font-black text-gray-900 mb-2">
               Kirim Kode OTP
             </h2>
-            <p className="text-center text-sm text-gray-500 leading-relaxed mb-6">
+            <p className="text-center text-sm text-gray-500 leading-relaxed mb-4">
               FinBankLink akan mengirimkan kode OTP ke nomor WhatsApp yang terdaftar pada akun kamu untuk memverifikasi pengajuan ini.
             </p>
+
+            {/* Error Message inside Modal */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                <p className="text-xs font-bold text-red-600 mb-0.5">⚠️ Gagal</p>
+                <p className="text-[11px] text-red-500 leading-snug">
+                  {error.message}
+                </p>
+              </div>
+            )}
 
             {/* CTA – Send via WhatsApp */}
             <button
               id="btn-kirim-otp-wa"
               onClick={onConfirm}
-              className="w-full py-3.5 rounded-2xl text-white text-[15px] font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform duration-150"
+              disabled={loading}
+              className={`w-full py-3.5 rounded-2xl text-white text-[15px] font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform duration-150
+                ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               style={{ background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }}
             >
-              <MessageCircle size={18} fill="white" />
-              Kirim via WhatsApp
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Mengirim...
+                </>
+              ) : (
+                <>
+                  <MessageCircle size={18} fill="white" />
+                  {error ? 'Coba Lagi' : 'Kirim via WhatsApp'}
+                </>
+              )}
             </button>
           </div>
 
@@ -155,7 +183,7 @@ const AjukanPinjaman = () => {
     setLoading(true);
     setOtpError(null);
     try {
-      const res = await sendLoanOtp();
+      const res = await sendLoanOtp(bank.id);
       setShowOtp(false);
       navigate('/verifikasi-otp', {
         state: { bank, maskedPhone: res.phone ?? null },
@@ -200,7 +228,7 @@ const AjukanPinjaman = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="min-h-screen bg-gray-100 dark:bg-slate-900 flex flex-col">
 
         {/* ── Header ── */}
         <div className="bg-[#3b82f6] flex items-center gap-4 px-5 py-4 sticky top-0 z-10 shadow-md">
@@ -216,7 +244,7 @@ const AjukanPinjaman = () => {
 
         {/* ── Content ── */}
         <div className="flex-1 flex items-start justify-center p-6">
-          <div className="bg-white rounded-2xl shadow-lg w-full max-w-lg p-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg dark:shadow-none w-full max-w-lg p-8">
 
             {/* Bank Identity */}
             <div className="flex items-center gap-4 mb-6">
@@ -226,7 +254,7 @@ const AjukanPinjaman = () => {
                 </svg>
               </div>
               <div>
-                <h2 className="text-2xl font-black text-gray-900 leading-tight">
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">
                   {bank.nama_bank.replace('Bank ', 'BANK\n')}
                 </h2>
               </div>
@@ -236,19 +264,19 @@ const AjukanPinjaman = () => {
             <hr className="border-gray-200 mb-5" />
 
             {/* Info teks */}
-            <p className="text-sm font-semibold text-gray-800 mb-3">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
               Kamu mengajukan sebagai pengguna dengan akun personal.
             </p>
-            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">
               Kamu mengajukan bank tersebut untuk meminjam. Jika kamu sudah pernah mengajukan sebelumnya, maka:
             </p>
-            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1.5 mb-4 leading-relaxed">
+            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1.5 mb-4 leading-relaxed">
               <li>datamu akan digunakan untuk memverifikasi identitasmu dan dibagikan dengan sistem untuk pendaftaran pengajuan peminjaman;</li>
               <li>datamu akan terisi secara otomatis;</li>
               <li>tidak perlu mengupload selfie dengan KTP; dan</li>
               <li>proses registrasi menjadi lebih cepat.</li>
             </ul>
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
               Klik "Ajukan Sekarang" apabila kamu setuju untuk membagikan datamu (termasuk data pribadi) ke layanan bank.
             </p>
 
@@ -263,7 +291,7 @@ const AjukanPinjaman = () => {
                   disabled={submitted}
                   className="mt-0.5 w-4 h-4 accent-blue-500 cursor-pointer flex-shrink-0"
                 />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
                   Saya setuju untuk melakukan pengajuan kepada bank tersebut
                 </span>
               </label>
@@ -277,9 +305,9 @@ const AjukanPinjaman = () => {
                   disabled={submitted}
                   className="mt-0.5 w-4 h-4 accent-blue-500 cursor-pointer flex-shrink-0"
                 />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
                   Saya telah membaca dan menyetujui{' '}
-                  <a href="#" className="text-blue-500 hover:underline font-medium">
+                  <a href="#" className="text-blue-500 dark:text-blue-400 hover:underline font-medium">
                     Kebijakan Privasi FinBankLink
                   </a>
                 </span>
@@ -310,10 +338,10 @@ const AjukanPinjaman = () => {
                 id="btn-ajukan-sekarang"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className={`w-full py-4 rounded-full text-white text-[15px] font-bold tracking-wide transition-all duration-200 shadow-md
+                className={`w-full py-4 rounded-full text-[15px] font-bold tracking-wide transition-all duration-200 shadow-md
                   ${canSubmit
-                    ? 'bg-[#3b82f6] hover:bg-[#2563eb] active:scale-95 shadow-blue-200'
-                    : 'bg-gray-300 cursor-not-allowed shadow-none'
+                    ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb] active:scale-95 shadow-blue-200 dark:shadow-none'
+                    : 'bg-gray-300 dark:bg-slate-700 text-gray-500 cursor-not-allowed shadow-none'
                   }`}
               >
                 {loading ? (
@@ -355,6 +383,8 @@ const AjukanPinjaman = () => {
           onConfirm={handleOtpConfirm}
           onOtherWay={handleOtherWay}
           onCancel={handleOtpCancel}
+          loading={loading}
+          error={otpError}
         />
       )}
     </>

@@ -1,5 +1,281 @@
 @import "tailwindcss";
 
+/* ── Shimmer skeleton animation ── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Force class-based dark mode (bukan OS prefers-color-scheme) */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── Elemen yang harus tetap terang meski dark mode aktif ── */
+html.dark .keep-light {
+  background-color: #ffffff !important;
+  color: inherit !important;
+  border-color: inherit !important;
+}
+
+html.dark input.keep-light {
+  background-color: #ffffff !important;
+  color: #001D4A !important;
+  border-color: transparent !important;
+}
+
+
+/* ─── Scrollbar hide ─────────────────────────────────────────────────── */
 .clip-path-figma-soft {
   clip-path: polygon(0 0, 100% 0, 100% 30%, 0 70%);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─── Dark Mode ──────────────────────────────────────────────────────── */
+html.dark {
+  color-scheme: dark;
+}
+
+/* Body & main background */
+html.dark body,
+html.dark .bg-\[#F8FAFC\],
+html.dark .min-h-screen {
+  background-color: #0f1117 !important;
+}
+
+/* White cards → dark slate */
+html.dark .bg-white {
+  background-color: #1a1f2e !important;
+}
+
+/* Gray backgrounds */
+html.dark .bg-gray-50 {
+  background-color: #1e2438 !important;
+}
+
+html.dark .bg-gray-100 {
+  background-color: #252d40 !important;
+}
+
+/* Main content wrapper (rounded white card in MainLayout) */
+html.dark .bg-white.rounded-\[40px\] {
+  background-color: #151929 !important;
+}
+
+/* Text colors */
+html.dark .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+html.dark .text-gray-500 {
+  color: #64748b !important;
+}
+
+html.dark .text-gray-400 {
+  color: #475569 !important;
+}
+
+/* Borders */
+html.dark .border-gray-100 {
+  border-color: #252d40 !important;
+}
+
+html.dark .border-gray-200 {
+  border-color: #2d3748 !important;
+}
+
+/* Inputs & textareas */
+html.dark input:not([type="file"]),
+html.dark textarea,
+html.dark select {
+  background-color: #1e2438 !important;
+  border-color: #2d3748 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #475569 !important;
+}
+
+/* Hover states */
+html.dark .hover\:bg-gray-50:hover {
+  background-color: #1e2438 !important;
+}
+
+/* Info / score banners */
+html.dark .bg-blue-50 {
+  background-color: #1a2744 !important;
+}
+
+html.dark .bg-blue-50\/90 {
+  background-color: rgba(26, 39, 68, 0.92) !important;
+}
+
+html.dark .bg-violet-50 {
+  background-color: #1e1a44 !important;
+}
+
+html.dark .bg-emerald-50 {
+  background-color: #0f2820 !important;
+}
+
+html.dark .bg-amber-50 {
+  background-color: #2a1f0a !important;
+}
+
+html.dark .bg-red-50 {
+  background-color: #2a1010 !important;
+}
+
+html.dark .bg-green-50 {
+  background-color: #0f2820 !important;
+}
+
+/* Border colors for colored sections */
+html.dark .border-blue-100 {
+  border-color: #1e3a6e !important;
+}
+
+html.dark .border-red-100 {
+  border-color: #4a1010 !important;
+}
+
+html.dark .border-gray-50 {
+  border-color: #1e2438 !important;
+}
+
+/* Text in colored sections */
+html.dark .text-blue-950 {
+  color: #93c5fd !important;
+}
+
+html.dark .text-blue-700 {
+  color: #60a5fa !important;
+}
+
+html.dark .text-blue-600\/80 {
+  color: rgba(96, 165, 250, 0.8) !important;
+}
+
+/* Shadow adjustments */
+html.dark .shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .shadow-md {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Doc rows expanded bg */
+html.dark .bg-gray-50\/50 {
+  background-color: rgba(30, 36, 56, 0.5) !important;
+}
+
+html.dark .bg-gray-50\/30 {
+  background-color: rgba(30, 36, 56, 0.3) !important;
+}
+
+/* Toggle switch track (un-checked) */
+html.dark .bg-gray-200 {
+  background-color: #374151 !important;
+}
+
+/* ── Missing overrides for KesehatanBisnis & Riwayat ──────────────────── */
+
+/* text-gray-900 (judul halaman) */
+html.dark .text-gray-900 {
+  color: #f1f5f9 !important;
+}
+
+/* hover text transitions */
+html.dark .group-hover\:text-gray-900:hover {
+  color: #f1f5f9 !important;
+}
+
+html.dark .hover\:text-gray-600:hover {
+  color: #94a3b8 !important;
+}
+
+/* bg-white with opacity (chart wrapper in KesehatanBisnis) */
+html.dark .bg-white\/60 {
+  background-color: rgba(26, 31, 46, 0.7) !important;
+}
+
+/* bg-gray-100/80 (segmented control background) */
+html.dark .bg-gray-100\/80 {
+  background-color: rgba(37, 45, 64, 0.8) !important;
+}
+
+/* bg-gray-50/50 & /80 (used in Riwayat cards & Rekomenasi empty state) */
+html.dark .bg-gray-50\/80 {
+  background-color: rgba(30, 36, 56, 0.8) !important;
+}
+
+/* border-dashed sections */
+html.dark .border-gray-200 {
+  border-color: #2d3748 !important;
+}
+
+/* bg-gray-100 for cancel button in modal */
+html.dark .bg-gray-100 {
+  background-color: #252d40 !important;
+}
+
+html.dark .hover\:bg-gray-200:hover {
+  background-color: #2d3748 !important;
+}
+
+/* SVG hardcoded fill colors — override presentation attributes via CSS */
+html.dark svg text[fill="#4B5563"] {
+  fill: #94a3b8 !important;
+}
+
+html.dark svg text[fill="#1e3a5f"] {
+  fill: #e2e8f0 !important;
+}
+
+html.dark svg text[fill="#9CA3AF"] {
+  fill: #64748b !important;
+}
+
+/* Donut inner circle white → dark background */
+html.dark svg circle[fill="white"] {
+  fill: #1a1f2e !important;
+}
+
+/* Radar grid lines stay subtle */
+html.dark svg line[stroke="#E5E7EB"] {
+  stroke: #2d3748 !important;
+}
+
+html.dark svg polygon[stroke="#E5E7EB"] {
+  stroke: #2d3748 !important;
+}
+
+/* Riwayat timeline text (inline done/current color logic stays, but base text) */
+html.dark .text-amber-800 {
+  color: #fcd34d !important;
+}
+
+/* Accent color stays the same (#4A90D9) — intentional */
+
+/* Smooth transition on ALL elements for dark mode switch */
+html,
+html * {
+  transition: background-color 0.25s ease, border-color 0.2s ease, color 0.2s ease, fill 0.2s ease;
 }

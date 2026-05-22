@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
-  User, FileText, Settings, CreditCard, Info, QrCode, ShieldCheck, ChevronRight, Upload, Loader2, Camera,
+  User, FileText, Settings, CreditCard, Info, ChevronRight, Upload, Loader2, Camera,
   CheckCircle2, Lock, Bell, Globe, Eye, EyeOff, Shield, Trash2, ChevronDown, X, AlertTriangle, Moon, Sun,
+  Activity, Landmark, Sparkles, TrendingUp, BadgeCheck,
 } from 'lucide-react';
 import { getProfile, updateProfile, getBusinessProfile, updateBusinessProfile, changePassword, deleteAccount } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -468,13 +469,18 @@ const Pengaturan = () => {
   // ── Notifikasi ──────────────────────────────────────────────────────────────
   const NOTIF_KEY = 'notif_prefs';
   const [notif, setNotif] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(NOTIF_KEY)) || {}; } catch { return {}; }
+    try {
+      const stored = localStorage.getItem(NOTIF_KEY);
+      return stored ? JSON.parse(stored) : { email_pengajuan: true, email_promo: true, push_reminder: false, push_skor: false };
+    } catch {
+      return { email_pengajuan: true, email_promo: true, push_reminder: false, push_skor: false };
+    }
   });
   const notifItems = [
-    { key: 'email_pengajuan', label: 'Update pengajuan pinjaman', desc: 'Email saat status pengajuan berubah' },
-    { key: 'email_promo',     label: 'Penawaran & promo',         desc: 'Info produk terbaru dari mitra bank' },
-    { key: 'push_reminder',   label: 'Pengingat kelengkapan dokumen', desc: 'Notifikasi jika dokumen belum lengkap' },
-    { key: 'push_skor',       label: 'Perubahan skor bisnis',     desc: 'Push saat skor kesehatan bisnis berubah' },
+    { key: 'email_pengajuan', label: 'Status Pengajuan Pinjaman', desc: 'Email instan saat status pengajuan (Verifikasi, Survei, Disetujui/Ditolak) diperbarui oleh bank mitra' },
+    { key: 'email_promo',     label: 'Rekomendasi Kemitraan & Penawaran Modal', desc: 'Alert kecocokan produk pembiayaan baru dari bank mitra yang sesuai kriteria skor bisnis Anda' },
+    { key: 'push_reminder',   label: 'Pengingat Kelengkapan Berkas', desc: 'Alert sistem penting untuk segera melengkapi dokumen agar skor bisnis optimal' },
+    { key: 'push_skor',       label: 'Laporan & Pembaruan Skor Kesehatan', desc: 'Push notifikasi jika indikator skor kesehatan bisnis mengalami kenaikan atau pembaruan' },
   ];
   const toggleNotif = (key, val) => {
     const next = { ...notif, [key]: val };
@@ -498,12 +504,18 @@ const Pengaturan = () => {
   // ── Privasi Data ────────────────────────────────────────────────────────────
   const PRIV_KEY = 'privacy_prefs';
   const [priv, setPriv] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(PRIV_KEY)) || {}; } catch { return {}; }
+    try {
+      const stored = localStorage.getItem(PRIV_KEY);
+      return stored ? JSON.parse(stored) : { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
+    } catch {
+      return { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
+    }
   });
   const privItems = [
-    { key: 'profil_publik',  label: 'Profil terlihat oleh bank mitra', desc: 'Bank dapat melihat nama & bidang usahamu' },
-    { key: 'skor_publik',    label: 'Skor bisnis terlihat oleh bank',   desc: 'Bank mitra dapat melihat skor kesehatanmu' },
-    { key: 'analitik',       label: 'Bantu tingkatkan FinBankLink',      desc: 'Kirim data analitik anonim untuk pengembangan' },
+    { key: 'profil_publik',  label: 'Matchmaking Usaha Terenkripsi', desc: 'Bank mitra dapat mencocokkan kriteria mereka dengan usahamu secara anonim. Nama & kontak dibagikan hanya jika kamu menyetujui penawaran' },
+    { key: 'skor_publik',    label: 'Visibilitas Skor Kesehatan Bisnis', desc: 'Bank mitra dapat melihat total skor kesehatan bisnismu di dashboard pencarian modal untuk mempermudah kurasi awal' },
+    { key: 'analitik',       label: 'Analitik Anonim Kinerja Platform', desc: 'Kirim data analitik interaksi terenkripsi tanpa menyertakan dokumen finansial untuk optimasi sistem' },
+    { key: 'akses_dokumen',  label: 'Akses Dokumen Terbatas (OTP)', desc: 'Mengunci berkas finansial (Rekening Koran, NIB, KTP). Bank hanya bisa membukanya melalui verifikasi kode OTP nasabah' },
   ];
   const togglePriv = (key, val) => {
     const next = { ...priv, [key]: val };
@@ -1107,14 +1119,20 @@ const Profile = () => {
       <div className="w-64 flex-shrink-0 space-y-4">
 
         {/* Card Biru */}
-        <div className="bg-[#4A90D9] rounded-3xl p-5 text-white shadow-md">
-          <div className="flex justify-center mb-5">
-            <div className="bg-[#5A9FE8] rounded-full p-1 flex gap-1 text-xs">
-              <span className="bg-white text-[#4A90D9] font-semibold px-4 py-1 rounded-full">Personal</span>
-              <span className="px-4 py-1 opacity-80 cursor-pointer">Bisnis</span>
+        <div className="bg-gradient-to-br from-[#4A90D9] via-[#5A9FE8] to-[#3A7BC8] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+          {/* Decorative background circles */}
+          <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/5 rounded-full" />
+          <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/5 rounded-full" />
+
+          {/* Verified badge */}
+          <div className="flex justify-center mb-4 relative">
+            <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 text-[10px] font-semibold border border-white/20">
+              <BadgeCheck size={13} className="text-emerald-300" />
+              <span>Akun Terverifikasi</span>
             </div>
           </div>
-          <div className="flex flex-col items-center">
+
+          <div className="flex flex-col items-center relative">
             <label className="relative w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden mb-3 shadow-lg cursor-pointer group">
               <input type="file" accept="image/png, image/jpeg, image/jpg" className="hidden" onChange={handleAvatarChange} />
               <img src={user.avatar || "https://i.pravatar.cc/150?img=47"} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -1122,16 +1140,21 @@ const Profile = () => {
                 <Camera size={20} className="text-white drop-shadow-md" />
               </div>
             </label>
-            <h2 className="text-base font-semibold tracking-wide text-center">{user.name}</h2>
+            <h2 className="text-base font-bold tracking-wide text-center">{user.name}</h2>
             <p className="text-xs opacity-80 mt-0.5">{user.phone || '—'}</p>
+            <p className="text-[10px] opacity-50 mt-1">Bergabung sejak {new Date(user.created_at || Date.now()).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
           </div>
-          <div className="flex gap-2 mt-5">
-            <button className="flex-1 bg-white/20 hover:bg-white/30 transition py-2 rounded-xl text-[10px] flex items-center justify-center gap-1.5 border border-white/20">
-              <QrCode size={12} /> QR SAYA <ChevronRight size={10} />
-            </button>
-            <button className="flex-1 bg-white/20 hover:bg-white/30 transition py-2 rounded-xl text-[10px] flex items-center justify-center gap-1.5 border border-white/20">
-              <ShieldCheck size={12} className="text-red-300" /> Proteksi Akun <ChevronRight size={10} />
-            </button>
+
+          {/* Quick Action Buttons */}
+          <div className="flex gap-2 mt-5 relative">
+            <Link to="/kesehatan-bisnis" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
+              <span className="font-bold">Skor Bisnis</span>
+              {healthSnap && <span className="text-[9px] opacity-70 font-semibold">{healthSnap.skor_total}/600</span>}
+            </Link>
+            <Link to="/cari-modal" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
+              <span className="font-bold">Ajukan Pinjaman</span>
+              <span className="text-[9px] opacity-70 font-semibold">Mulai proses →</span>
+            </Link>
           </div>
         </div>
 

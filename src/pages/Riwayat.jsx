@@ -10,6 +10,8 @@ const fmt = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
 /** Warna badge status (sinkron label backend → UI). */
 const STATUS_STYLE = {
   Menunggu: { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
+  Verifikasi: { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
+  Survei: { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
   Disetujui: { bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
   Ditolak: { bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
   Dibatalkan: { bg: '#f3f4f6', text: '#4b5563', dot: '#9ca3af' },
@@ -67,6 +69,7 @@ export default function Riwayat() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -131,12 +134,15 @@ export default function Riwayat() {
 
   const activeMain = useMemo(() => pickActiveSubmission(sorted), [sorted]);
 
-  const historyRows = useMemo(
-    () => sorted.filter((s) => s.status_raw === 'ditolak' || s.status_raw === 'dibatalkan'),
-    [sorted]
-  );
+  const historyRows = sorted;
 
-  const submission = activeMain;
+  const submission = useMemo(() => {
+    if (selectedSubmissionId) {
+      const found = sorted.find((s) => s.id === selectedSubmissionId || s.submission_id === selectedSubmissionId);
+      if (found) return found;
+    }
+    return activeMain;
+  }, [sorted, activeMain, selectedSubmissionId]);
   const statusStyle = submission ? STATUS_STYLE[submission.status] || STATUS_STYLE.Menunggu : null;
   const refId = submission ? `#${submission.id}` : null;
   const timeline = submission
@@ -161,17 +167,31 @@ export default function Riwayat() {
     }
   };
 
-  const RiwayatTab = () => (
+  const handleSelectSubmission = (row) => {
+    setSelectedSubmissionId(row.id || row.submission_id);
+    setActiveTab('aktif');
+  };
+
+  const renderRiwayatTab = () => (
     <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
       {historyRows.length === 0 ? (
         <p className="text-xs text-gray-400 font-medium text-center py-6">
-          Belum ada pengajuan yang ditolak atau dibatalkan.
+          Belum ada pengajuan pinjaman tercatat.
         </p>
       ) : (
         historyRows.map((row) => {
           const st = STATUS_STYLE[row.status] || STATUS_STYLE.Menunggu;
+          const isSelected = submission && (submission.id === row.id || submission.submission_id === row.submission_id);
           return (
-            <div key={row.submission_id} className="rounded-xl border border-gray-100 p-3 bg-gray-50/80">
+            <div
+              key={row.submission_id}
+              onClick={() => handleSelectSubmission(row)}
+              className={`rounded-xl border p-3 cursor-pointer transition-all duration-200 ${
+                isSelected
+                  ? 'bg-blue-50/70 border-blue-300 shadow-sm ring-1 ring-blue-100'
+                  : 'border-gray-100 bg-gray-50/80 hover:bg-gray-100 hover:border-gray-200 hover:-translate-y-0.5'
+              }`}
+            >
               <p className="text-[10px] font-mono text-gray-500">#{row.id}</p>
               <p className="text-sm font-bold text-gray-800">{row.nama_bank}</p>
               <p className="text-xs text-gray-500 mt-0.5">{fmt(row.nominal)} · {row.tenor} bln</p>
@@ -272,7 +292,7 @@ export default function Riwayat() {
               </button>
             </div>
             {activeTab === 'riwayat' ? (
-              <RiwayatTab />
+              renderRiwayatTab()
             ) : (
               <div className="p-4 text-center">
                 <p className="text-xs text-gray-400 mb-3">
@@ -442,7 +462,12 @@ export default function Riwayat() {
               <button
                 key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  if (tab === 'aktif' && activeMain) {
+                    setSelectedSubmissionId(null);
+                  }
+                }}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${activeTab === tab ? 'bg-[#4A90D9] text-white' : 'border border-gray-200 text-gray-700 bg-white shadow-sm'
                   }`}
               >
@@ -452,7 +477,7 @@ export default function Riwayat() {
           </div>
 
           {activeTab === 'riwayat' ? (
-            <RiwayatTab />
+            renderRiwayatTab()
           ) : (
             <>
               <div className="p-4">

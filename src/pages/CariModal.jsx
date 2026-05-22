@@ -258,6 +258,7 @@ const BankCarousel = ({ title, banks, setActiveBank, goAjukan }) => {
 const CariModal = () => {
   const [banks, setBanks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState(null);
   const [activeBank, setActiveBank] = useState(null);
   const navigate = useNavigate();
 
@@ -374,26 +375,84 @@ const CariModal = () => {
               <span>Keunggulan:</span>
             </div>
             {[
-              { text: 'Kredit Mikro', icon: Briefcase },
-              { text: 'Bunga 0%', icon: Percent },
-              { text: 'Proses 1 Hari', icon: Clock },
-              { text: 'Tanpa Jaminan', icon: ShieldCheck }
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-full text-[11px] md:text-xs font-bold text-white uppercase tracking-wider transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,255,255,0.15)] group"
-              >
-                <item.icon className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-200 group-hover:text-white transition-colors" />
-                {item.text}
-              </div>
-            ))}
+              { id: 'mikro', text: 'Kredit Mikro', icon: Briefcase },
+              { id: 'bunga', text: 'Bunga Ringan', icon: Percent },
+              { id: 'cepat', text: 'Proses Cepat', icon: Clock },
+              { id: 'jaminan', text: 'Tanpa Jaminan', icon: ShieldCheck }
+            ].map((item) => {
+              const isActive = activeFilter === item.id;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setActiveFilter(isActive ? null : item.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,255,255,0.15)] group ${
+                    isActive
+                      ? 'bg-white text-blue-600 border border-white shadow-[0_4px_16px_rgba(255,255,255,0.25)]'
+                      : 'bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 text-white'
+                  }`}
+                >
+                  <item.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-blue-200 group-hover:text-white'}`} />
+                  {item.text}
+                </div>
+              );
+            })}
           </div>
+
+          {/* --- ACTIVE FILTER STATUS & RESET BUTTON --- */}
+          {activeFilter && (
+            <div className="relative z-10 mt-4 md:ml-8 lg:ml-12 flex items-center justify-between bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl max-w-lg transition-all animate-fadeIn">
+              <div className="flex items-center gap-2 text-white/95 text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span>Filter aktif: </span>
+                <span className="bg-white/25 px-2 py-0.5 rounded-md text-white font-bold tracking-wide uppercase text-[10px]">
+                  {activeFilter === 'mikro' && 'Kredit Mikro'}
+                  {activeFilter === 'bunga' && 'Bunga Ringan'}
+                  {activeFilter === 'cepat' && 'Proses Cepat'}
+                  {activeFilter === 'jaminan' && 'Tanpa Jaminan'}
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveFilter(null)}
+                className="text-[10px] md:text-xs font-bold text-white hover:text-red-200 underline transition-colors cursor-pointer bg-transparent border-none uppercase tracking-wider"
+              >
+                Hapus Filter
+              </button>
+            </div>
+          )}
         </div>
 
         {/* --- KOTAK 2: SECTION REKOMENDASI KARTU --- */}
         <div className="bg-white dark:bg-gray-800 rounded-[40px] p-8 mt-8">
           {(() => {
-            const filteredBanks = banks.filter(bank => bank.nama_bank.toLowerCase().includes(searchTerm.toLowerCase()));
+            const filteredBanks = banks.filter(bank => {
+              // 1. Pencarian Kata Kunci
+              const query = searchTerm.toLowerCase();
+              const matchesSearch = bank.nama_bank.toLowerCase().includes(query) ||
+                                    bank.nama_produk.toLowerCase().includes(query) ||
+                                    (bank.deskripsi || '').toLowerCase().includes(query);
+              
+              if (!matchesSearch) return false;
+
+              // 2. Penyaringan Kategori Filter
+              if (activeFilter === 'mikro') {
+                return bank.plafon_max <= 50000000;
+              }
+              if (activeFilter === 'bunga') {
+                return bank.bunga_persen <= 0.6;
+              }
+              if (activeFilter === 'cepat') {
+                const desc = (bank.deskripsi || '').toLowerCase();
+                const prod = (bank.nama_produk || '').toLowerCase();
+                return desc.includes('cepat') || prod.includes('super mikro') || prod.includes('kta');
+              }
+              if (activeFilter === 'jaminan') {
+                const desc = (bank.deskripsi || '').toLowerCase();
+                const prod = (bank.nama_produk || '').toLowerCase();
+                return desc.includes('tanpa jaminan') || desc.includes('tanpa agunan') || prod.includes('kta');
+              }
+
+              return true;
+            });
 
             const banksByCategory = filteredBanks.reduce((acc, bank) => {
               const key = (bank.category_name || bank.category || 'terdaftar').toLowerCase();

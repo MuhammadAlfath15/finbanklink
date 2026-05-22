@@ -1,0 +1,1 @@
+kalo dipikir-pikir halaman bank dashboard kayanya akan kacau ketika melayanai user banyak sekaligus dalam waktu yang berbarengan misalnya ada 100 pengajuan dalam 1 hari/1 waktu.

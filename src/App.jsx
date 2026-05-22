@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
+import BankLogin from './pages/BankLogin';
 import Daftar from './pages/Daftar';
 import LupaPassword from './pages/LupaPassword';
 import MainLayout from './layouts/MainLayout';
@@ -48,6 +49,7 @@ function App() {
         {/* Halaman Publik */}
         <Route path="/" element={<Login />} />
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/bank/login" element={<BankLogin />} />
         <Route path="/daftar" element={<Daftar />} />
         <Route path="/lupa password" element={<LupaPassword />} /> {/* UDAH GAK PAKE SPASI */}
 

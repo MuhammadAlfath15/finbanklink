@@ -181,6 +181,18 @@ function ActivityItem({
 export default function Dashboard() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [showLeftScrollHint, setShowLeftScrollHint] = useState(true);
+
+  const handleLeftScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // Hide hint if scrolled down more than 15px, or if close to bottom
+    if (scrollTop > 15 || scrollHeight - scrollTop - clientHeight < 10) {
+      setShowLeftScrollHint(false);
+    } else {
+      setShowLeftScrollHint(true);
+    }
+  };
+
   const [adIndex, setAdIndex] = useState(0);
   const [ads, setAds] = useState([]);
   const [adsLoaded, setAdsLoaded] = useState(false);
@@ -202,6 +214,20 @@ export default function Dashboard() {
   const [submissions, setSubmissions] = useState([]);
   const activeSubmission = useMemo(() => pickActiveSubmission(submissions), [submissions]);
   const card = useMemo(() => getDashboardSubmissionCardCopy(activeSubmission), [activeSubmission]);
+
+  const hasMultipleSubmissions = useMemo(() => {
+    if (submissions.length === 0) return false;
+    const activeSubmissions = submissions.filter(s => {
+      const localSteps = JSON.parse(localStorage.getItem('local_submission_steps') || '{}');
+      const eff = localSteps[s.id] || localSteps[s.submission_id] || s.status_raw;
+      return ['menunggu', 'Verifikasi', 'Survei', 'verifikasi', 'survei'].includes(eff) || s.bank_message?.includes('[STEP:');
+    });
+    const tracking = activeSubmissions.length > 0 
+      ? activeSubmissions 
+      : [submissions[0]];
+    return tracking.length > 1;
+  }, [submissions]);
+
   const [submissionLoading, setSubmissionLoading] = useState(true);
 
   const fetchSubmissions = useCallback(() => {
@@ -227,6 +253,56 @@ export default function Dashboard() {
   }, [fetchSubmissions]);
 
   const [notifications, setNotifications] = useState([]);
+  const filteredNotifications = useMemo(() => {
+    if (!notifications) return [];
+    
+    let prefs = {};
+    try {
+      prefs = JSON.parse(localStorage.getItem('notif_prefs')) || {
+        email_pengajuan: true,
+        email_promo: true,
+        push_reminder: false,
+        push_skor: false
+      };
+    } catch {
+      prefs = {
+        email_pengajuan: true,
+        email_promo: true,
+        push_reminder: false,
+        push_skor: false
+      };
+    }
+
+    const isEmailPengajuanEnabled = prefs.email_pengajuan ?? true;
+    const isEmailKemitraanEnabled = prefs.email_promo ?? true;
+    const isPushReminderEnabled = prefs.push_reminder ?? false;
+    const isPushSkorEnabled = prefs.push_skor ?? false;
+
+    return notifications.filter(n => {
+      const title = n.title.toLowerCase();
+      const subject = (n.subject || '').toLowerCase();
+      const msg = n.message.toLowerCase();
+
+      // 1. Status Pengajuan Pinjaman
+      const isLoanUpdate = title.includes('bank') || subject.includes('pengajuan') || msg.includes('pengajuan') || subject.includes('status');
+      if (isLoanUpdate && !isEmailPengajuanEnabled) return false;
+
+      // 2. Rekomendasi Kemitraan & Penawaran Modal
+      const isPromo = title.includes('rekomendasi') || subject.includes('promo') || subject.includes('penawaran') || subject.includes('kemitraan') || msg.includes('promo') || msg.includes('penawaran');
+      if (isPromo && !isEmailKemitraanEnabled) return false;
+
+      // 3. Pengingat Kelengkapan Berkas
+      const isReminder = title.includes('dokumen') || subject.includes('lengkap') || msg.includes('dokumen') || msg.includes('lengkapi') || title.includes('berkas') || msg.includes('berkas');
+      if (isReminder && !isPushReminderEnabled) return false;
+
+      // 4. Laporan & Pembaruan Skor Kesehatan
+      const isScore = title.includes('skor') || subject.includes('skor') || msg.includes('skor');
+      if (isScore && !isPushSkorEnabled) return false;
+
+      return true;
+    });
+  }, [notifications]);
+
   const fetchAllNotifications = useCallback(() => {
     getNotifications().then((res) => {
       if (res && res.data) {
@@ -450,10 +526,14 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="flex gap-5 font-sans min-h-0">
+      <div className="flex gap-5 font-sans min-h-0 h-[460px]">
 
         {/* ── Kolom Kiri (Kartu Info) ── */}
-        <div className="w-36 flex-shrink-0 space-y-4">
+        <div className="relative w-36 h-full flex-shrink-0">
+          <div
+            onScroll={handleLeftScroll}
+            className="w-full h-full space-y-4 overflow-y-auto thin-scrollbar pr-1.5 pb-6"
+          >
 
           {/* Skor Keuanganmu */}
           {(() => {
@@ -487,37 +567,131 @@ export default function Dashboard() {
 
           {/* Status pengajuan aktif — sinkron dengan Riwayat / API */}
           {(() => {
-            const copy = getDashboardSubmissionCardCopy(activeSubmission);
-            const iconWrap = 'w-12 h-12 flex items-center justify-center';
+            const activeSubmissions = submissions.filter(s => {
+              const localSteps = JSON.parse(localStorage.getItem('local_submission_steps') || '{}');
+              const eff = localSteps[s.id] || localSteps[s.submission_id] || s.status_raw;
+              return ['menunggu', 'Verifikasi', 'Survei', 'verifikasi', 'survei'].includes(eff) || s.bank_message?.includes('[STEP:');
+            });
 
-            let icon = (
-              <Landmark className="w-7 h-7 text-gray-300" strokeWidth={1.5} />
-            );
+            const trackingSubmissions = activeSubmissions.length > 0 
+              ? activeSubmissions 
+              : (submissions.length > 0 ? [submissions[0]] : []);
+
             if (submissionLoading) {
-              icon = <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />;
-            } else if (copy.variant === 'pending') {
-              icon = <Clock className="w-8 h-8 text-amber-500" strokeWidth={2} />;
-            } else if (copy.variant === 'success') {
-              icon = <CheckCircle2 className="w-9 h-9 text-emerald-500" strokeWidth={2} />;
-            } else if (copy.variant === 'reject') {
-              icon = <XCircle className="w-9 h-9 text-red-400" strokeWidth={2} />;
-            } else if (copy.variant === 'cancel') {
-              icon = <X className="w-8 h-8 text-gray-400" strokeWidth={2} />;
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center text-center w-full min-h-[140px]">
+                  <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                  <p className="text-[10px] text-gray-400 mt-2 font-semibold">Memuat progres...</p>
+                </div>
+              );
+            }
+
+            if (trackingSubmissions.length === 0) {
+              return (
+                <button
+                  type="button"
+                  onClick={() => navigate('/cari-modal')}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col items-center text-center w-full hover:border-blue-200 hover:shadow-md transition-all cursor-pointer min-h-[140px] justify-center"
+                >
+                  <p className="text-[10px] font-black text-gray-600 mb-1">Belum ada pengajuan</p>
+                  <Landmark className="w-8 h-8 text-gray-300 my-2" strokeWidth={1.5} />
+                  <p className="text-[9px] text-gray-400 leading-tight">Ajukan modal usaha di halaman Cari Modal.</p>
+                </button>
+              );
             }
 
             return (
-              <button
-                type="button"
-                onClick={() => navigate('/riwayat')}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-col items-center text-center w-full hover:border-blue-200 hover:shadow-md transition-all cursor-pointer"
-              >
-                <p className="text-[10px] font-semibold text-gray-600 mb-2 leading-tight min-h-[2.25rem] flex flex-col justify-center">
-                  <span>{copy.line1}</span>
-                  <span className="font-bold text-gray-800">{copy.line2}</span>
-                </p>
-                <div className={iconWrap}>{icon}</div>
-                <p className="text-[9px] text-gray-500 mt-2 leading-tight px-0.5">{copy.foot}</p>
-              </button>
+              <div className="space-y-3 w-full">
+                {trackingSubmissions.map((sub, index) => {
+                  const localSteps = JSON.parse(localStorage.getItem('local_submission_steps') || '{}');
+                  let effStatus = localSteps[sub.id] || localSteps[sub.submission_id] || sub.status_raw || 'menunggu';
+                  effStatus = effStatus.toLowerCase();
+                  if (sub.bank_message?.includes('[STEP:VERIFIKASI]')) effStatus = 'verifikasi';
+                  if (sub.bank_message?.includes('[STEP:SURVEI]')) effStatus = 'survei';
+
+                  let statusText = 'Diproses';
+                  let statusDesc = 'Bank sedang meninjau berkas Anda.';
+                  let dotsActive = 1;
+
+                  if (effStatus === 'verifikasi') {
+                    statusText = 'Verifikasi Dokumen';
+                    statusDesc = 'Dokumen Anda sedang divalidasi bank.';
+                    dotsActive = 2;
+                  } else if (effStatus === 'survei') {
+                    statusText = 'Tahap Survei';
+                    statusDesc = 'Petugas bank sedang menganalisis usaha Anda.';
+                    dotsActive = 3;
+                  } else if (effStatus === 'disetujui') {
+                    statusText = 'Disetujui! 🎉';
+                    statusDesc = 'Dana disetujui, tunggu akad pencairan.';
+                    dotsActive = 4;
+                  } else if (effStatus === 'ditolak') {
+                    statusText = 'Ditolak';
+                    statusDesc = 'Maaf, pengajuan belum memenuhi syarat.';
+                    dotsActive = 4;
+                  } else if (effStatus === 'dibatalkan') {
+                    statusText = 'Dibatalkan';
+                    statusDesc = 'Pengajuan dibatalkan nasabah.';
+                    dotsActive = 0;
+                  }
+
+                  return (
+                    <div
+                      key={sub.submission_id || index}
+                      onClick={() => navigate('/riwayat')}
+                      className={`relative bg-white rounded-2xl border border-gray-100 shadow-sm p-3.5 flex flex-col text-left w-full hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${
+                        activeSubmissions.length > 1 ? 'border-l-4 border-l-blue-500' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          {sub.nama_bank}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400">
+                          {sub.id}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-xs font-bold text-gray-800 truncate mb-1">
+                        {sub.nama_produk}
+                      </h4>
+
+                      <p className="text-[10px] text-gray-500 font-medium leading-tight mb-2.5 min-h-[24px]">
+                        {statusDesc}
+                      </p>
+
+                      <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-900/40 p-2 rounded-xl border border-gray-100/50">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            effStatus === 'disetujui' ? 'bg-emerald-500' : effStatus === 'ditolak' || effStatus === 'dibatalkan' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'
+                          }`} />
+                          <span className="text-[9px] font-extrabold text-gray-700 tracking-wide">
+                            {statusText}
+                          </span>
+                        </div>
+
+                        {effStatus !== 'dibatalkan' && (
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4].map((dot) => {
+                              const isCompleted = dot <= dotsActive;
+                              const isCurrent = dot === dotsActive && !['disetujui', 'ditolak'].includes(effStatus);
+                              return (
+                                <div
+                                  key={dot}
+                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                                    isCurrent ? 'bg-amber-400 scale-125 animate-pulse' : (isCompleted ? 'bg-blue-600' : 'bg-gray-200')
+                                  }`}
+                                  title={`Tahap ${dot}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             );
           })()}
 
@@ -537,8 +711,17 @@ export default function Dashboard() {
 
         </div>
 
+        {/* Floating Scroll Indicator */}
+        {hasMultipleSubmissions && showLeftScrollHint && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-blue-600/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-lg animate-bounce pointer-events-none z-10 transition-opacity duration-300">
+            <span>Scroll</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          </div>
+        )}
+      </div>
+
         {/* ── Kolom Tengah (Chart) ── */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 h-full">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 h-full relative group">
             {/* Tombol Edit Omzet */}
             <button
@@ -617,9 +800,9 @@ export default function Dashboard() {
         </div>
 
         {/* ── Kolom Kanan (Aktivitas) ── */}
-        <div className="w-56 flex-shrink-0 bg-[#4A90D9] rounded-2xl shadow-md flex flex-col overflow-hidden self-start">
+        <div className="w-56 flex-shrink-0 bg-[#4A90D9] rounded-2xl shadow-md flex flex-col overflow-hidden h-full">
           {/* Header */}
-          <div className="px-4 pt-4 pb-3">
+          <div className="px-4 pt-4 pb-3 flex-shrink-0">
             <div className="relative flex items-center justify-center mb-3 min-h-[28px]">
               <h2 className="text-white text-lg font-bold">Aktivitas</h2>
             </div>
@@ -636,15 +819,16 @@ export default function Dashboard() {
           </div>
 
           {/* Scrollable list */}
-          <div className="bg-white overflow-y-auto max-h-[370px]">
+          <div className="bg-white overflow-y-auto flex-1">
             <div className="px-3 py-2">
-              {notifications.length === 0 ? (
+              {filteredNotifications.length === 0 ? (
                 <div className="py-10 text-center flex flex-col items-center justify-center opacity-60">
                   <ShieldCheck size={32} className="text-gray-300 mb-2" />
                   <p className="text-xs font-bold text-gray-400">Belum ada aktivitas</p>
+                  <p className="text-[10px] text-gray-400 mt-1 px-4 leading-normal">Aktivitas mungkin disembunyikan berdasarkan Pengaturan Notifikasi Anda.</p>
                 </div>
               ) : (
-                notifications
+                filteredNotifications
                   .filter(n => n.title.toLowerCase().includes(search.toLowerCase()) || n.message.toLowerCase().includes(search.toLowerCase()))
                   .map((notif, index) => {
                     const isRead = !!notif.read_at;

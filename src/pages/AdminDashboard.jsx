@@ -55,7 +55,7 @@ const emptyArticle = { title: '', excerpt: '', image_url: '', sort_order: 0, is_
 const emptyCategory = { name: '', sort_order: 0 };
 const emptyBank = {
   nama_bank: '',
-  category_id: '',
+  category_ids: [],
   nama_produk: '',
   bunga: '',
   cicilan: '',
@@ -156,9 +156,9 @@ export default function AdminDashboard() {
       setUsers(userRows || []);
       setCategories(categoryRows || []);
       setRowCategoryMap(Object.fromEntries((bankRows || []).map((bank) => [bank.id, bank.category_id || ''])));
-      if (!bankForm.category_id && categoryRows?.length) {
+      if ((!bankForm.category_ids || bankForm.category_ids.length === 0) && categoryRows?.length) {
         const registered = categoryRows.find((cat) => cat.name === 'terdaftar');
-        setBankForm((prev) => ({ ...prev, category_id: registered?.id || categoryRows[0].id }));
+        setBankForm((prev) => ({ ...prev, category_ids: registered ? [registered.id] : [categoryRows[0].id] }));
       }
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Gagal ambil data admin.');
@@ -218,13 +218,20 @@ export default function AdminDashboard() {
 
   const createBank = async (e) => {
     e.preventDefault();
+    if (!bankForm.category_ids || bankForm.category_ids.length === 0) {
+      toast.error('Pilih minimal satu kategori bank.');
+      return;
+    }
     try {
       await createAdminBank({
         ...bankForm,
-        category_id: Number(bankForm.category_id),
+        category_ids: bankForm.category_ids.map(Number),
         syarat: bankForm.syarat.split('\n').map((v) => v.trim()).filter(Boolean),
       });
-      setBankForm(emptyBank);
+      setBankForm({
+        ...emptyBank,
+        category_ids: bankForm.category_ids,
+      });
       toast.success('Kartu bank berhasil ditambah.');
       loadAll();
     } catch (error) {
@@ -234,7 +241,7 @@ export default function AdminDashboard() {
 
   const moveBankCategory = async (bankId) => {
     try {
-      await updateAdminBank(bankId, { category_id: Number(rowCategoryMap[bankId]) });
+      await updateAdminBank(bankId, { category_ids: [Number(rowCategoryMap[bankId])] });
       toast.success('Kategori bank diperbarui.');
       loadAll();
     } catch (error) {
@@ -246,7 +253,7 @@ export default function AdminDashboard() {
     setBankDetailForm({
       id: bank.id,
       nama_bank: bank.nama_bank ?? '',
-      category_id: bank.category_id ?? '',
+      category_ids: bank.category_ids ?? (bank.category_id ? [bank.category_id] : []),
       nama_produk: bank.nama_produk ?? '',
       bunga: bank.bunga ?? '',
       cicilan: bank.cicilan ?? '',
@@ -266,11 +273,15 @@ export default function AdminDashboard() {
   const saveBankDetail = async (e) => {
     e.preventDefault();
     if (!bankDetailForm?.id) return;
+    if (!bankDetailForm.category_ids || bankDetailForm.category_ids.length === 0) {
+      toast.error('Pilih minimal satu kategori bank.');
+      return;
+    }
     setSavingBankDetail(true);
     try {
       await updateAdminBank(bankDetailForm.id, {
         nama_bank: bankDetailForm.nama_bank,
-        category_id: Number(bankDetailForm.category_id),
+        category_ids: bankDetailForm.category_ids.map(Number),
         nama_produk: bankDetailForm.nama_produk,
         bunga: bankDetailForm.bunga,
         cicilan: bankDetailForm.cicilan,
@@ -1534,12 +1545,43 @@ export default function AdminDashboard() {
                     <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nama Bank Mitra</label>
                     <input className="w-full px-3 py-2 border rounded-lg border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="Contoh: Bank BRI" value={bankForm.nama_bank} onChange={(e) => setBankForm({ ...bankForm, nama_bank: e.target.value })} />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Kategori Registrasi</label>
-                    <select className="w-full px-3 py-2 border rounded-lg border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white" value={bankForm.category_id} onChange={(e) => setBankForm({ ...bankForm, category_id: e.target.value })}>
-                      <option value="">Pilih Kategori</option>
-                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
+                  <div className="md:col-span-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 shadow-inner">
+                    <label className="block text-[10px] font-black uppercase text-slate-600 mb-2 tracking-wider flex items-center gap-1.5">
+                      <Tags size={14} className="text-blue-500" />
+                      Pilih Kategori Bank (Bisa Pilih Lebih Dari Satu)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map((cat) => {
+                        const isSelected = bankForm.category_ids?.includes(cat.id);
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => {
+                              const alreadySelected = bankForm.category_ids?.includes(cat.id);
+                              let newIds = [];
+                              if (alreadySelected) {
+                                newIds = bankForm.category_ids.filter((id) => id !== cat.id);
+                              } else {
+                                newIds = [...(bankForm.category_ids || []), cat.id];
+                              }
+                              setBankForm({ ...bankForm, category_ids: newIds });
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200 select-none cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-md shadow-blue-200'
+                                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {isSelected ? <Check size={12} strokeWidth={3} className="text-white" /> : <Plus size={12} strokeWidth={2.5} className="text-slate-400" />}
+                            <span className="capitalize">{cat.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(!bankForm.category_ids || bankForm.category_ids.length === 0) && (
+                      <p className="text-[10px] text-red-500 font-semibold mt-1">⚠️ Wajib memilih minimal satu kategori</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nama Produk Kredit</label>
@@ -1620,9 +1662,22 @@ export default function AdminDashboard() {
                     {banks.map((row) => (
                       <tr key={row.id} className="border-b hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-bold text-slate-600">
-                          <span className="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200 text-[10px]">
-                            {row.category_name || 'terdaftar'}
-                          </span>
+                          <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                            {row.categories && row.categories.length > 0 ? (
+                              row.categories.map((cat) => (
+                                <span
+                                  key={cat.id}
+                                  className="px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-750 font-extrabold rounded-full border border-blue-100 text-[9px] uppercase tracking-wider shadow-sm"
+                                >
+                                  {cat.name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="px-2.5 py-1 bg-slate-50 text-slate-500 font-extrabold rounded-full border border-slate-200 text-[9px] uppercase tracking-wider shadow-sm">
+                                {row.category_name || 'terdaftar'}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 font-extrabold">
                           <button
@@ -1923,11 +1978,43 @@ export default function AdminDashboard() {
                 <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nama Bank</label>
                 <input className="w-full px-3 py-2 border rounded-lg border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value={bankDetailForm.nama_bank} onChange={(e) => setBankDetailForm((prev) => ({ ...prev, nama_bank: e.target.value }))} />
               </div>
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Kategori Registrasi</label>
-                <select className="w-full px-3 py-2 border rounded-lg border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white" value={bankDetailForm.category_id} onChange={(e) => setBankDetailForm((prev) => ({ ...prev, category_id: e.target.value }))}>
-                  {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select>
+              <div className="md:col-span-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 shadow-inner">
+                <label className="block text-[10px] font-black uppercase text-slate-600 mb-2 tracking-wider flex items-center gap-1.5">
+                  <Tags size={14} className="text-blue-500" />
+                  Kategori Bank Mitra (Bisa Pilih Lebih Dari Satu)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => {
+                    const isSelected = bankDetailForm.category_ids?.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          const alreadySelected = bankDetailForm.category_ids?.includes(cat.id);
+                          let newIds = [];
+                          if (alreadySelected) {
+                            newIds = bankDetailForm.category_ids.filter((id) => id !== cat.id);
+                          } else {
+                            newIds = [...(bankDetailForm.category_ids || []), cat.id];
+                          }
+                          setBankDetailForm({ ...bankDetailForm, category_ids: newIds });
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200 select-none cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-md shadow-blue-200'
+                            : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {isSelected ? <Check size={12} strokeWidth={3} className="text-white" /> : <Plus size={12} strokeWidth={2.5} className="text-slate-400" />}
+                        <span className="capitalize">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(!bankDetailForm.category_ids || bankDetailForm.category_ids.length === 0) && (
+                  <p className="text-[10px] text-red-500 font-semibold mt-1">⚠️ Wajib memilih minimal satu kategori</p>
+                )}
               </div>
               <div>
                 <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nama Produk Kredit</label>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, X, ChevronRight } from 'lucide-react';
-import { sendLoanOtp } from '../services/api';
+import { sendLoanOtp, getMySubmissions } from '../services/api';
 
 /* ─────────────────────────────────────────────
    OTP Bottom-Sheet Modal
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 const OtpModal = ({ onConfirm, onOtherWay, onCancel, loading, error }) => {
   return (
     <>
@@ -155,8 +155,161 @@ const OtpModal = ({ onConfirm, onOtherWay, onCancel, loading, error }) => {
 };
 
 /* ─────────────────────────────────────────────
+   Educational Disclaimer Bottom-Sheet Modal
+   ───────────────────────────────────────────── */
+const DisclaimerModal = ({ activeSubmissions, onConfirm, onCancel }) => {
+  return (
+    <>
+      <style>{`
+        @keyframes backdropFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes sheetSlideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        .animate-backdrop-fade-in {
+          animation: backdropFadeIn 0.3s ease-out forwards;
+        }
+        .animate-sheet-slide-up {
+          animation: sheetSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm animate-backdrop-fade-in"
+        onClick={onCancel}
+      />
+
+      {/* Sheet */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 animate-sheet-slide-up"
+        style={{
+          maxWidth: '640px',
+          margin: '0 auto',
+        }}
+      >
+        <div className="bg-white rounded-t-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-300" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900 text-[16px] leading-tight">Edukasi Keuangan</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Penting Sebelum Mengajukan</p>
+              </div>
+            </div>
+            <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-5 overflow-y-auto flex-1 space-y-4">
+            
+            <div className="bg-amber-50/70 border border-amber-100/60 rounded-2xl p-4 flex gap-3">
+              <div className="text-amber-500 mt-0.5 flex-shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <p className="text-xs text-amber-900 font-semibold leading-relaxed">
+                Kami mendeteksi Anda saat ini memiliki <strong className="font-black">{activeSubmissions.length} pengajuan aktif</strong> yang sedang diproses oleh bank lain.
+              </p>
+            </div>
+
+            {/* List of active loans */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Pengajuan Aktif Anda Saat Ini</p>
+              <div className="space-y-2">
+                {activeSubmissions.map((sub, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                        🏛️
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">{sub.nama_bank}</p>
+                        <p className="text-[10px] text-gray-500 font-semibold">{sub.nama_produk}</p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                      Sedang Diproses
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Official Disclaimer with requested text */}
+            <div className="bg-[#f0f6ff] border border-blue-100 rounded-2xl p-5 shadow-inner">
+              <p className="text-[13px] text-blue-950 leading-relaxed font-black italic text-center">
+                "Catatan: Pengajuan beberapa pinjaman sekaligus dapat memengaruhi penilaian skor kredit Anda oleh pihak bank."
+              </p>
+            </div>
+
+            {/* Educational content for layman */}
+            <div className="space-y-3 pt-2">
+              <h4 className="text-xs font-black text-gray-800">Mengapa Hal Ini Penting?</h4>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h5 className="text-[11px] font-bold text-gray-800 mb-1">📉 Skor Kredit Dapat Menurun</h5>
+                  <p className="text-[11.5px] text-gray-600 leading-relaxed font-medium">
+                    Setiap kali Anda mengajukan pinjaman baru, bank akan melakukan verifikasi data keuangan resmi Anda. Mengajukan ke banyak bank dalam waktu singkat dapat tercatat sebagai tindakan yang menurunkan skor reputasi kredit Anda di BI Checking / SLIK OJK.
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h5 className="text-[11px] font-bold text-gray-800 mb-1">⚠️ Terlihat Lebih Berisiko bagi Bank</h5>
+                  <p className="text-[11.5px] text-gray-600 leading-relaxed font-medium">
+                    Bank dapat melihat transparansi riwayat pengajuan aktif Anda. Pengajuan yang terlalu banyak sekaligus dapat memberi kesan bahwa usaha Anda dalam kondisi keuangan darurat yang berisiko tinggi bagi bank untuk menyetujuinya.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Footer CTAs */}
+          <div className="p-6 border-t border-gray-100 bg-gray-50/50 space-y-2">
+            <button
+              onClick={onConfirm}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+            >
+              Saya Mengerti, Lanjutkan Pengajuan
+            </button>
+            <button
+              onClick={onCancel}
+              className="w-full py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 font-extrabold text-sm rounded-2xl transition-all"
+            >
+              Batalkan Pengajuan
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+};
+
+/* ─────────────────────────────────────────────
    Main Page
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 const AjukanPinjaman = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -169,13 +322,45 @@ const AjukanPinjaman = () => {
   const [submitted,  setSubmitted]  = useState(false);
   const [otpError,   setOtpError]   = useState(null); // { message, detail }
 
-  const canSubmit = agreed1 && agreed2 && !loading && !submitted && !showOtp;
+  const [activeSubmissions, setActiveSubmissions] = useState([]);
+  const [checkingSubmissions, setCheckingSubmissions] = useState(true);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  /* user clicks "Ajukan Sekarang" → tampilkan OTP modal */
+  useEffect(() => {
+    getMySubmissions()
+      .then((rows) => {
+        const list = Array.isArray(rows) ? rows : [];
+        const localSteps = JSON.parse(localStorage.getItem('local_submission_steps') || '{}');
+        const active = list.filter(s => {
+          const eff = (localSteps[s.id] || localSteps[s.submission_id] || s.status_raw || 'menunggu').toLowerCase();
+          return ['menunggu', 'verifikasi', 'survei'].includes(eff) || s.bank_message?.includes('[STEP:');
+        });
+        setActiveSubmissions(active);
+      })
+      .catch(() => setActiveSubmissions([]))
+      .finally(() => setCheckingSubmissions(false));
+  }, []);
+
+  const canSubmit = agreed1 && agreed2 && !loading && !submitted && !showOtp && !showDisclaimer;
+
+  /* user clicks "Ajukan Sekarang" → tampilkan DisclaimerModal atau OTP modal */
   const handleSubmit = () => {
     if (!canSubmit) return;
     setOtpError(null);
+    if (activeSubmissions.length > 0) {
+      setShowDisclaimer(true);
+    } else {
+      setShowOtp(true);
+    }
+  };
+
+  const handleDisclaimerConfirm = () => {
+    setShowDisclaimer(false);
     setShowOtp(true);
+  };
+
+  const handleDisclaimerCancel = () => {
+    setShowDisclaimer(false);
   };
 
   /* user confirms OTP sending */
@@ -385,6 +570,15 @@ const AjukanPinjaman = () => {
           onCancel={handleOtpCancel}
           loading={loading}
           error={otpError}
+        />
+      )}
+
+      {/* ── Disclaimer Modal ── */}
+      {showDisclaimer && (
+        <DisclaimerModal
+          activeSubmissions={activeSubmissions}
+          onConfirm={handleDisclaimerConfirm}
+          onCancel={handleDisclaimerCancel}
         />
       )}
     </>

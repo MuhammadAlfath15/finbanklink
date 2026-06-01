@@ -70,6 +70,8 @@ const emptyBank = {
   syarat: '',
 };
 
+const formatRp = (n) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+
 export default function AdminDashboard() {
   const [ads, setAds] = useState([]);
   const [articles, setArticles] = useState([]);
@@ -96,6 +98,43 @@ export default function AdminDashboard() {
   const [adImageFile, setAdImageFile] = useState(null);
   const [adImagePreviewUrl, setAdImagePreviewUrl] = useState(null);
 
+  // States for Bank Promotion
+  const [promoBankId, setPromoBankId] = useState('');
+  const [promoImageFile, setPromoImageFile] = useState(null);
+  const [promoPreviewUrl, setPromoPreviewUrl] = useState(null);
+  const [savingPromo, setSavingPromo] = useState(false);
+  const promoFileInputRef = useRef(null);
+
+  // States & helper functions for Premium Custom Confirmation Modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'Ya, Hapus',
+    cancelText: 'Batal',
+    type: 'danger', // 'danger' | 'warning' | 'info'
+  });
+
+  const showConfirm = (title, message, onConfirm, type = 'danger', confirmText = 'Ya, Hapus', cancelText = 'Batal') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        closeConfirm();
+      },
+      confirmText,
+      cancelText,
+      type,
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
   // States for filtering and searching ads
   const [adSearchQuery, setAdSearchQuery] = useState('');
   const [adStatusFilter, setAdStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
@@ -112,16 +151,20 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('ads-articles');
   const navigate = useNavigate();
 
-  const handleDeleteAd = async (id) => {
-    const ok = window.confirm('Apakah Anda yakin ingin menghapus iklan ini?');
-    if (!ok) return;
-    try {
-      await deleteAdminAd(id);
-      toast.success('Iklan berhasil dihapus.');
-      loadAll();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Gagal menghapus iklan.');
-    }
+  const handleDeleteAd = (id) => {
+    showConfirm(
+      'Hapus Iklan Banner',
+      'Apakah Anda yakin ingin menghapus iklan banner ini dari sistem? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.',
+      async () => {
+        try {
+          await deleteAdminAd(id);
+          toast.success('Iklan berhasil dihapus.');
+          loadAll();
+        } catch (error) {
+          toast.error(error?.response?.data?.message || 'Gagal menghapus iklan.');
+        }
+      }
+    );
   };
 
   const handleToggleAdStatus = async (ad) => {
@@ -440,18 +483,82 @@ export default function AdminDashboard() {
       articleFileInputRef.current.value = '';
     }
   };
+  const handleDeleteArticle = (article) => {
+    showConfirm(
+      'Hapus Artikel Edukasi',
+      `Apakah Anda yakin ingin menghapus artikel "${article.title}"? Artikel ini akan dihapus secara permanen dari portal nasabah.`,
+      async () => {
+        try {
+          await deleteAdminArticle(article.id);
+          toast.success('Artikel berhasil dihapus.');
+          loadAll();
+        } catch (error) {
+          toast.error(error?.response?.data?.message || 'Gagal menghapus artikel.');
+        }
+      }
+    );
+  };
 
-  const handleDeleteArticle = async (article) => {
-    const ok = window.confirm(`Apakah Anda yakin ingin menghapus artikel "${article.title}"?`);
-    if (!ok) return;
+  const handlePromoImageChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setPromoImageFile(file);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPromoPreviewUrl(url);
+    } else {
+      setPromoPreviewUrl(null);
+    }
+  };
 
+  const handleCreatePromotion = async (e) => {
+    e.preventDefault();
+    if (!promoBankId) {
+      toast.error('Silakan pilih bank terlebih dahulu.');
+      return;
+    }
+    if (!promoImageFile) {
+      toast.error('Silakan unggah gambar promosi untuk diletakkan di halaman utama.');
+      return;
+    }
+
+    setSavingPromo(true);
     try {
-      await deleteAdminArticle(article.id);
-      toast.success('Artikel berhasil dihapus.');
+      const formData = new FormData();
+      formData.append('is_promoted', '1');
+      formData.append('promo_image', promoImageFile);
+      
+      await updateAdminBank(promoBankId, formData);
+      
+      toast.success('Promosi bank berhasil diterbitkan dan aktif di halaman utama!');
+      setPromoBankId('');
+      setPromoImageFile(null);
+      setPromoPreviewUrl(null);
+      if (promoFileInputRef.current) promoFileInputRef.current.value = '';
       loadAll();
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Gagal menghapus artikel.');
+      toast.error(error?.response?.data?.message || 'Gagal menerbitkan promosi bank.');
+    } finally {
+      setSavingPromo(false);
     }
+  };
+
+  const handleRemovePromotion = (bankId) => {
+    showConfirm(
+      'Hentikan Promosi Bank',
+      'Apakah Anda yakin ingin melepas bank ini dari promosi halaman utama? Tampilan di beranda nasabah akan dikembalikan ke setelan semula.',
+      async () => {
+        try {
+          await updateAdminBank(bankId, { is_promoted: 0 });
+          toast.success('Bank berhasil dihapus dari promosi.');
+          loadAll();
+        } catch (error) {
+          toast.error(error?.response?.data?.message || 'Gagal menghapus promosi.');
+        }
+      },
+      'warning',
+      'Ya, Hentikan Promosi',
+      'Batal'
+    );
   };
 
   const handleChangeAdminPassword = async (e) => {
@@ -496,40 +603,40 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-slate-50/50 flex flex-col lg:flex-row font-sans">
       
       {/* ─── BILAH SISI (SIDEBAR) PREMIUM ─── */}
-      <aside className="w-full lg:w-72 bg-[#090D1A] text-slate-200 flex flex-col shrink-0 border-b lg:border-b-0 lg:border-r border-slate-800 shadow-2xl relative z-40">
+      <aside className="w-full lg:w-72 bg-white text-slate-700 flex flex-col shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200/80 shadow-xl relative z-40">
         
         {/* Header Brand */}
-        <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 font-black text-lg">
               F
             </div>
             <div>
-              <h1 className="text-base font-black text-white tracking-tight flex items-center gap-1.5">
+              <h1 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
                 FinBank Link
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">PRO</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200/60">PRO</span>
               </h1>
-              <p className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase">Portal Kontrol Admin</p>
+              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Portal Kontrol Admin</p>
             </div>
           </div>
         </div>
 
         {/* Info Profil Admin */}
-        <div className="p-4 border-b border-slate-800/40">
-          <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/60 backdrop-blur-md flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+        <div className="p-4 border-b border-slate-100">
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100/60 flex items-center justify-center text-blue-600 shrink-0">
               <UserCheck size={18} />
             </div>
             <div className="min-w-0">
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Status Akses</p>
-              <p className="text-xs font-black text-white truncate">Administrator Utama</p>
+              <p className="text-xs font-black text-slate-800 truncate">Administrator Utama</p>
             </div>
           </div>
         </div>
 
         {/* Menu Navigasi Utama */}
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-3 block mb-3">Navigasi Panel</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 block mb-3">Navigasi Panel</span>
           
           {/* Menu Tab 1: Iklan & Artikel */}
           <button
@@ -537,10 +644,10 @@ export default function AdminDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
               activeTab === 'ads-articles'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50'
             }`}
           >
-            <Megaphone size={16} className={activeTab === 'ads-articles' ? 'text-white' : 'text-slate-400 group-hover:text-blue-400 transition-colors'} />
+            <Megaphone size={16} className={activeTab === 'ads-articles' ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
             <span className="flex-1 text-left">Iklan &amp; Artikel Edukasi</span>
             {activeTab === 'ads-articles' && (
               <div className="w-1.5 h-6 bg-white rounded-full absolute right-2" />
@@ -553,10 +660,10 @@ export default function AdminDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
               activeTab === 'banks-categories'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50'
             }`}
           >
-            <CreditCard size={16} className={activeTab === 'banks-categories' ? 'text-white' : 'text-slate-400 group-hover:text-blue-400 transition-colors'} />
+            <CreditCard size={16} className={activeTab === 'banks-categories' ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
             <span className="flex-1 text-left">Kartu Bank &amp; Kategori</span>
             {activeTab === 'banks-categories' && (
               <div className="w-1.5 h-6 bg-white rounded-full absolute right-2" />
@@ -569,10 +676,10 @@ export default function AdminDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
               activeTab === 'user-documents'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50'
             }`}
           >
-            <FolderOpen size={16} className={activeTab === 'user-documents' ? 'text-white' : 'text-slate-400 group-hover:text-blue-400 transition-colors'} />
+            <FolderOpen size={16} className={activeTab === 'user-documents' ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
             <span className="flex-1 text-left">Berkas User &amp; Keamanan</span>
             {activeTab === 'user-documents' && (
               <div className="w-1.5 h-6 bg-white rounded-full absolute right-2" />
@@ -581,10 +688,10 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="p-4 border-t border-slate-800/80 space-y-2 shrink-0">
+        <div className="p-4 border-t border-slate-100 space-y-2 shrink-0">
           <button
             onClick={() => navigate('/')}
-            className="w-full flex items-center justify-center gap-2 py-3 border border-slate-800 hover:border-slate-700 bg-slate-900/30 hover:bg-slate-900/60 text-slate-300 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-xl transition-all cursor-pointer"
           >
             <Home size={14} />
             <span>Kembali ke Beranda</span>
@@ -882,6 +989,18 @@ export default function AdminDashboard() {
                         placeholder="Contoh: Ajukan Sekarang"
                         value={adForm.cta}
                         onChange={(e) => setAdForm({ ...adForm, cta: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-slate-600">Urutan Tampil (Sort Order)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-lg border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        placeholder="Contoh: 1 untuk pertama, 2 untuk kedua"
+                        value={adForm.sort_order}
+                        onChange={(e) => setAdForm({ ...adForm, sort_order: Number(e.target.value) })}
                       />
                     </div>
 
@@ -1408,6 +1527,182 @@ export default function AdminDashboard() {
 
               </section>
 
+              {/* 🏦 SECTION: PROMOSI BANK DI BERANDA NASABAH ── */}
+              <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <CreditCard className="text-blue-500 w-5 h-5" />
+                      Promosi Kartu Bank di Beranda Utama Nasabah
+                    </h2>
+                    <p className="text-xs text-slate-500">Pilih mitra bank terdaftar untuk dipromosikan di bagian <em>"Disarankan Untukmu"</em> halaman utama nasabah.</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-bold">
+                    <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                      Total Promosi: <strong className="text-blue-800">{banks.filter(b => b.is_promoted).length} Bank</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+                  {/* Form Terbitkan Promosi */}
+                  <div className="xl:col-span-5 bg-slate-50/50 rounded-xl border border-slate-200/80 p-5 space-y-4">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Plus size={16} className="text-blue-500" />
+                      Tambah Promosi Bank Baru
+                    </h3>
+
+                    <form onSubmit={handleCreatePromotion} className="space-y-4">
+                      {/* Dropdown Pilih Bank */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-slate-600">Pilih Bank Terdaftar <span className="text-red-500">*</span></label>
+                        <select
+                          required
+                          value={promoBankId}
+                          onChange={(e) => setPromoBankId(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                          <option value="">-- Pilih Bank --</option>
+                          {banks
+                            .filter((b) => !b.is_promoted)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.nama_bank} - {b.nama_produk} (Plafon Max: {formatRp(b.plafon_max)})
+                              </option>
+                            ))
+                          }
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1">Daftar bank diambil dari tab master "Kartu Bank &amp; Kategori".</p>
+                      </div>
+
+                      {/* Unggah Gambar Promosi */}
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-slate-600">Gambar Promosi Kustom <span className="text-red-500">*</span></label>
+                        <div className="relative border-2 border-dashed border-slate-300 hover:border-blue-400 bg-white hover:bg-blue-50/20 rounded-xl p-4 transition-all cursor-pointer text-center flex flex-col items-center justify-center min-h-[120px]">
+                          <input
+                            type="file"
+                            ref={promoFileInputRef}
+                            accept="image/*"
+                            required
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            onChange={handlePromoImageChange}
+                          />
+                          {promoPreviewUrl ? (
+                            <div className="w-full flex items-center gap-3">
+                              <img src={promoPreviewUrl} alt="preview" className="w-16 h-12 object-cover rounded-lg border border-slate-200 shrink-0" />
+                              <div className="text-left min-w-0 flex-1">
+                                <p className="text-xs font-bold text-slate-700 truncate">{promoImageFile?.name}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Klik untuk mengganti berkas</p>
+                              </div>
+                              <CheckCircle2 size={16} className="text-emerald-500 shrink-0 ml-auto" />
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="text-slate-400 mb-1 w-5 h-5" />
+                              <p className="text-xs font-bold text-slate-700">Pilih Berkas Gambar Promosi</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">Disarankan rasio lanskap (4:3 atau 16:9)</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Submit button */}
+                      <button
+                        type="submit"
+                        disabled={savingPromo || !promoBankId || !promoImageFile}
+                        className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {savingPromo ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>Menerbitkan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Megaphone size={14} />
+                            <span>Terbitkan Promosi Bank</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* List Promosi Aktif */}
+                  <div className="xl:col-span-7 space-y-4">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Globe size={16} className="text-blue-500" />
+                      Daftar Promosi Berjalan ({banks.filter(b => b.is_promoted).length} Bank)
+                    </h3>
+
+                    {banks.filter(b => b.is_promoted).length === 0 ? (
+                      <div className="py-16 text-center flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 opacity-60">
+                        <CreditCard size={40} className="text-slate-300 mb-2" />
+                        <p className="text-sm font-bold text-slate-500">Belum ada promosi bank aktif</p>
+                        <p className="text-xs text-slate-400">Gunakan form di sebelah kiri untuk memilih bank promosi dan mengunggah gambar.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {banks
+                          .filter((b) => b.is_promoted)
+                          .map((bank) => (
+                            <div key={bank.id} className="group bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-all duration-300">
+                              {/* Gambar Promo */}
+                              <div className="h-32 bg-slate-100 relative overflow-hidden flex items-center justify-center shrink-0">
+                                {bank.promo_image_url ? (
+                                  <img src={bank.promo_image_url} alt={bank.nama_bank} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" />
+                                ) : (
+                                  <ImageIcon size={28} className="text-slate-300" />
+                                )}
+                                <div className="absolute top-2 left-2">
+                                  <span className="text-[8px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white border border-emerald-600 shadow-sm">
+                                    Promosi Aktif
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Info Content */}
+                              <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                                <div className="space-y-1">
+                                  <span className="text-[8px] font-extrabold uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100/50 w-max block">
+                                    {bank.nama_bank}
+                                  </span>
+                                  <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-1">
+                                    {bank.nama_produk}
+                                  </h4>
+                                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 pt-1">
+                                    <div>
+                                      <p className="text-[8px] text-slate-400 font-extrabold uppercase">Plafon Maksimal</p>
+                                      <p className="font-extrabold text-slate-700">{formatRp(bank.plafon_max)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[8px] text-slate-400 font-extrabold uppercase">Bunga</p>
+                                      <p className="font-extrabold text-slate-700">{bank.bunga_persen}% / Bln</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="border-t border-slate-100 pt-3 flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemovePromotion(bank.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 rounded-lg transition-colors cursor-pointer"
+                                    title="Hapus dari halaman utama nasabah"
+                                  >
+                                    <Trash2 size={11} />
+                                    <span>Hapus Promosi</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
             </div>
           )}
 
@@ -1510,14 +1805,20 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold border border-red-200/50 rounded-lg transition-colors cursor-pointer"
-                              onClick={async () => {
-                                try {
-                                  await deleteAdminBankCategory(cat.id);
-                                  toast.success('Kategori berhasil dihapus.');
-                                  loadAll();
-                                } catch (error) {
-                                  toast.error(error?.response?.data?.message || 'Hapus kategori gagal.');
-                                }
+                              onClick={() => {
+                                showConfirm(
+                                  'Hapus Kategori Bank',
+                                  `Apakah Anda yakin ingin menghapus kategori "${cat.name}"? Kategori ini tidak dapat dipulihkan kembali.`,
+                                  async () => {
+                                    try {
+                                      await deleteAdminBankCategory(cat.id);
+                                      toast.success('Kategori berhasil dihapus.');
+                                      loadAll();
+                                    } catch (error) {
+                                      toast.error(error?.response?.data?.message || 'Hapus kategori gagal.');
+                                    }
+                                  }
+                                );
                               }}
                             >
                               Hapus
@@ -1723,16 +2024,20 @@ export default function AdminDashboard() {
                           <button
                             type="button"
                             className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold border border-red-200/50 rounded-lg transition-colors cursor-pointer"
-                            onClick={async () => {
-                              const check = window.confirm(`Apakah Anda yakin ingin menghapus kartu bank "${row.nama_bank}"?`);
-                              if (!check) return;
-                              try {
-                                await deleteAdminBank(row.id);
-                                toast.success('Kartu bank berhasil dihapus.');
-                                loadAll();
-                              } catch {
-                                toast.error('Hapus kartu bank gagal.');
-                              }
+                            onClick={() => {
+                              showConfirm(
+                                'Hapus Kartu Bank',
+                                `Apakah Anda yakin ingin menghapus kartu bank "${row.nama_bank}"? Data kartu dan penawaran produk ini akan terhapus selamanya.`,
+                                async () => {
+                                  try {
+                                    await deleteAdminBank(row.id);
+                                    toast.success('Kartu bank berhasil dihapus.');
+                                    loadAll();
+                                  } catch {
+                                    toast.error('Hapus kartu bank gagal.');
+                                  }
+                                }
+                              );
                             }}
                           >
                             Hapus
@@ -2074,6 +2379,69 @@ export default function AdminDashboard() {
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-200 transition-all cursor-pointer" disabled={savingBankDetail}>{savingBankDetail ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
               </div>
             </form>
+
+          </div>
+        </div>
+      )}
+      {/* ─── MODAL KONFIRMASI KUSTOM PREMIUM (PORTAL) ─── */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Top accent line */}
+            <div className={`h-1.5 w-full ${
+              confirmModal.type === 'danger' ? 'bg-red-500' : 
+              confirmModal.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+            }`} />
+            
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                
+                {/* Icon wrapper */}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  confirmModal.type === 'danger' ? 'bg-red-50 text-red-600' :
+                  confirmModal.type === 'warning' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {confirmModal.type === 'danger' && <AlertCircle size={20} />}
+                  {confirmModal.type === 'warning' && <AlertCircle size={20} />}
+                  {confirmModal.type === 'info' && <CheckCircle2 size={20} />}
+                </div>
+
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    {confirmModal.message}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-6">
+                <button
+                  type="button"
+                  onClick={closeConfirm}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  {confirmModal.cancelText}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmModal.onConfirm}
+                  className={`px-5 py-2 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-[0.98] cursor-pointer ${
+                    confirmModal.type === 'danger' 
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
+                      : confirmModal.type === 'warning'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  }`}
+                >
+                  {confirmModal.confirmText}
+                </button>
+              </div>
+
+            </div>
 
           </div>
         </div>

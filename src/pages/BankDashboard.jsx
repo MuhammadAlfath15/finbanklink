@@ -50,52 +50,9 @@ export default function BankDashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
 
-  // Preferensi privasi nasabah
-  const [privacyPrefs, setPrivacyPrefs] = useState(() => {
-    try {
-      const stored = localStorage.getItem('privacy_prefs');
-      return stored ? JSON.parse(stored) : { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
-    } catch {
-      return { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
-    }
-  });
-
-  // Dekripsi berkas finansial
-  const [isDecrypted, setIsDecrypted] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
-  const [otpSending, setOtpSending] = useState(false);
-
-  const isSkorPublik = privacyPrefs.skor_publik !== false;
-  const isAksesDokumenTerbatas = privacyPrefs.akses_dokumen === true;
-
-  // Sinkronisasi preferensi privasi secara real-time
-  useEffect(() => {
-    const handleStorageChange = () => {
-      try {
-        const stored = localStorage.getItem('privacy_prefs');
-        if (stored) {
-          setPrivacyPrefs(JSON.parse(stored));
-        }
-      } catch (err) {
-        console.error('Failed to sync privacy prefs:', err);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    // Juga sinkronisasi saat visibility berubah
-    const handleVis = () => {
-      if (document.visibilityState === 'visible') {
-        handleStorageChange();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVis);
-    // Jalankan sekali di mount
-    handleStorageChange();
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      document.removeEventListener('visibilitychange', handleVis);
-    };
-  }, []);
+  // 100% Transparency Mode: Banks always have full access to scores and files.
+  const isSkorPublik = true;
+  const isAksesDokumenTerbatas = false;
 
   // Enterprise scale sorting & pagination states
   const [sortBy, setSortBy] = useState('date_desc');
@@ -201,9 +158,6 @@ export default function BankDashboard() {
     setIsModalOpen(true);
     setDetailLoading(true);
     setAdminMessage('');
-    setIsDecrypted(false);
-    setShowOtpModal(false);
-    setOtpInput('');
     try {
       const d = await getBankSubmission(item.submission_id);
       setDetail(d);
@@ -219,32 +173,7 @@ export default function BankDashboard() {
     setTimeout(() => {
       setSelectedRequest(null);
       setDetail(null);
-      setIsDecrypted(false);
-      setShowOtpModal(false);
-      setOtpInput('');
     }, 200);
-  };
-
-  const handleRequestDecryption = () => {
-    setOtpSending(true);
-    const toastId = toast.loading('Mengirimkan permintaan persetujuan berkas ke WhatsApp pelaku UMKM...');
-    setTimeout(() => {
-      toast.dismiss(toastId);
-      toast.success('Permintaan Persetujuan WhatsApp Terkirim! Kode OTP simulasi dikirim ke nomor nasabah.', { duration: 4000 });
-      setOtpSending(false);
-      setShowOtpModal(true);
-    }, 1500);
-  };
-
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    if (otpInput === '123456') {
-      toast.success('Dekripsi Berhasil! Berkas finansial sensitif sekarang didekripsi.');
-      setIsDecrypted(true);
-      setShowOtpModal(false);
-    } else {
-      toast.error('Kode OTP tidak valid. Silakan periksa kembali pesan WhatsApp nasabah.');
-    }
   };
 
   const handleAction = async (submissionId, action) => {
@@ -695,60 +624,30 @@ export default function BankDashboard() {
                       <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
                         <FileText size={16} className="text-indigo-500" /> Berkas pengajuan
                       </h3>
-                      {isAksesDokumenTerbatas && !isDecrypted ? (
-                        <div className="space-y-4">
-                          <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex gap-3 items-center">
-                            <Lock className="text-rose-500 flex-shrink-0" size={20} />
-                            <div>
-                              <p className="text-xs font-bold text-rose-800">🔒 Berkas Finansial Terkunci</p>
-                              <p className="text-[11px] text-rose-600 mt-0.5 leading-relaxed">
-                                Nasabah mengaktifkan perlindungan akses dokumen. Kunci persetujuan OTP diperlukan.
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <button
-                            type="button"
-                            disabled={otpSending}
-                            onClick={handleRequestDecryption}
-                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-blue-100 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            {otpSending ? <Loader2 size={14} className="animate-spin" /> : 'Minta Kunci Dekripsi'}
-                          </button>
-                        </div>
+                      {detail?.documents?.length ? (
+                        <ul className="space-y-2">
+                          {detail.documents.map((doc) => (
+                            <li key={doc.key}>
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-colors text-sm font-semibold text-gray-800"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {doc.label}
+                                </span>
+                                <ExternalLink size={16} className="text-blue-500 flex-shrink-0" />
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        detail?.documents?.length ? (
-                          <ul className="space-y-2">
-                            {detail.documents.map((doc) => (
-                              <li key={doc.key}>
-                                <a
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-colors text-sm font-semibold text-gray-800"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    {isAksesDokumenTerbatas && <CheckCircle size={14} className="text-emerald-500 flex-shrink-0" />}
-                                    {doc.label}
-                                  </span>
-                                  <ExternalLink size={16} className="text-blue-500 flex-shrink-0" />
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-500">Tidak ada tautan berkas.</p>
-                        )
+                        <p className="text-sm text-gray-500">Tidak ada tautan berkas.</p>
                       )}
                     </div>
 
                     <div className="relative">
-                      {!isSkorPublik && (
-                        <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[4px] rounded-3xl flex flex-col items-center justify-center p-4 border border-gray-100/50">
-                          <Lock className="text-gray-400 w-8 h-8 mb-2" />
-                          <p className="text-xs font-bold text-gray-500 text-center">Grafik Finansial Terproteksi Privasi</p>
-                        </div>
-                      )}
                       <OmzetLineChart
                         chartPoints={detail?.omzet?.data}
                         title={`Grafik omzet nasabah (${detail?.omzet?.year ?? new Date().getFullYear()})`}
@@ -763,55 +662,41 @@ export default function BankDashboard() {
                         <Activity size={16} /> Skor kesehatan bisnis
                       </h3>
 
-                      {!isSkorPublik ? (
-                        <div className="relative z-10 min-h-[300px] flex flex-col items-center justify-center text-center p-4">
-                          <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 mb-4 shadow-lg animate-pulse">
-                            <Lock className="text-amber-400 w-8 h-8" />
-                          </div>
-                          <h4 className="text-sm font-extrabold tracking-wide uppercase text-amber-400 mb-2">🔒 Skor Kesehatan Terproteksi</h4>
-                          <p className="text-xs text-blue-200 leading-relaxed max-w-[200px]">
-                            Nasabah menonaktifkan visibilitas skor kesehatan publik demi kedaulatan privasi data usaha.
-                          </p>
+                      <div className="flex flex-col items-center justify-center relative z-10 mb-6">
+                        <div
+                          className={`w-28 h-28 rounded-full border-4 flex items-center justify-center bg-white/10 backdrop-blur-sm ${ringScore >= 80 ? 'border-emerald-400' : ringScore >= 60 ? 'border-blue-400' : 'border-rose-400'
+                            }`}
+                        >
+                          <span className="text-4xl font-black">{ringScore}</span>
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex flex-col items-center justify-center relative z-10 mb-6">
-                            <div
-                              className={`w-28 h-28 rounded-full border-4 flex items-center justify-center bg-white/10 backdrop-blur-sm ${ringScore >= 80 ? 'border-emerald-400' : ringScore >= 60 ? 'border-blue-400' : 'border-rose-400'
-                                }`}
-                            >
-                              <span className="text-4xl font-black">{ringScore}</span>
-                            </div>
-                            <p className="text-xs font-medium text-blue-200 mt-3 text-center px-2">
-                              Ringkasan 0–100 dari total <strong className="text-white">{health?.skor_total ?? '—'}</strong> / 600
-                            </p>
-                          </div>
+                        <p className="text-xs font-medium text-blue-200 mt-3 text-center px-2">
+                          Ringkasan 0–100 dari total <strong className="text-white">{health?.skor_total ?? '—'}</strong> / 600
+                        </p>
+                      </div>
 
-                          <div className="space-y-2 relative z-10 text-xs">
-                            {METRIC_LABELS.map(({ key, label }) => (
-                              <div
-                                key={key}
-                                className="flex items-center justify-between border-b border-white/10 pb-2 last:border-0"
-                              >
-                                <span className="text-blue-100">{label}</span>
-                                <span className="font-bold text-white">{health?.[key] ?? '—'}</span>
-                              </div>
-                            ))}
+                      <div className="space-y-2 relative z-10 text-xs">
+                        {METRIC_LABELS.map(({ key, label }) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between border-b border-white/10 pb-2 last:border-0"
+                          >
+                            <span className="text-blue-100">{label}</span>
+                            <span className="font-bold text-white">{health?.[key] ?? '—'}</span>
                           </div>
+                        ))}
+                      </div>
 
-                          {detail?.health_labels && (
-                            <div className="mt-4 pt-4 border-t border-white/10 relative z-10 space-y-2 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-blue-100">Kolektibilitas</span>
-                                <span className="font-bold text-emerald-300">{detail.health_labels.kolektibilitas}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-blue-100">Legalitas (indikator)</span>
-                                <span className="font-bold text-emerald-300">{detail.health_labels.legalitas}</span>
-                              </div>
-                            </div>
-                          )}
-                        </>
+                      {detail?.health_labels && (
+                        <div className="mt-4 pt-4 border-t border-white/10 relative z-10 space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-blue-100">Kolektibilitas</span>
+                            <span className="font-bold text-emerald-300">{detail.health_labels.kolektibilitas}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-100">Legalitas (indikator)</span>
+                            <span className="font-bold text-emerald-300">{detail.health_labels.legalitas}</span>
+                          </div>
+                        </div>
                       )}
                     </div>
 
@@ -903,67 +788,6 @@ export default function BankDashboard() {
         </div>
       )}
 
-      {showOtpModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowOtpModal(false)} />
-          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
-            {/* Background elements for premium feel */}
-            <div className="absolute top-[-20%] right-[-20%] w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute bottom-[-20%] left-[-20%] w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-            
-            <button
-              onClick={() => setShowOtpModal(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-full transition-colors"
-            >
-              <XCircle size={18} />
-            </button>
-
-            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl flex items-center justify-center mb-5 mx-auto shadow-sm">
-              <Shield size={28} strokeWidth={2.5} className="text-indigo-600" />
-            </div>
-
-            <h3 className="text-xl font-black text-gray-900 text-center mb-2">Dekripsi Berkas Sensitif</h3>
-            <p className="text-xs text-gray-500 text-center leading-relaxed mb-6 px-4">
-              Silakan masukkan 6-digit kode OTP persetujuan yang telah dikirim ke nomor WhatsApp pelaku UMKM <strong>({selectedRequest?.phone || 'nasabah'})</strong>.
-            </p>
-
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block text-center">Kode Verifikasi OTP</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="******"
-                  className="w-full text-center px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 text-2xl font-black tracking-[0.75em] text-gray-800 placeholder-gray-300"
-                  autoFocus
-                />
-                <p className="text-[10px] text-gray-400 text-center font-medium">
-                  Petunjuk Pengembang: Gunakan kode <span className="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">123456</span> untuk demo.
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowOtpModal(false)}
-                  className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-500 hover:bg-gray-50 transition-all active:scale-[0.98]"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={otpInput.length !== 6}
-                  className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  Verifikasi & Dekripsi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

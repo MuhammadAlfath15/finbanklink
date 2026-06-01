@@ -174,6 +174,29 @@ export const adminLogin = async (email, password) => {
   return res.data;
 };
 
+export const bankLogin = async (email, password) => {
+  if (USE_MOCK) {
+    if (!email.includes('@') || password.length < 6) {
+      throw new Error('Email atau Password salah!');
+    }
+    return mockDelay({
+      success: true,
+      message: 'Login bank berhasil',
+      token: 'mock-token-bank123',
+      role: 'bank',
+      user: {
+        id: 10,
+        name: 'Yurii Kharlistov',
+        email: email,
+        role: 'bank',
+        bank_id: 1,
+      },
+    });
+  }
+  const res = await http.post('/bank/login', { email, password });
+  return res.data;
+};
+
 /**
  * Register user baru
  * @param {string} name
@@ -389,6 +412,13 @@ export const createAdminBank = async (payload) => {
 };
 
 export const updateAdminBank = async (id, payload) => {
+  if (payload instanceof FormData) {
+    payload.append('_method', 'PUT');
+    const res = await http.post(`/admin/banks/${id}`, payload, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  }
   const res = await http.put(`/admin/banks/${id}`, payload);
   return res.data;
 };

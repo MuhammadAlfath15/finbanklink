@@ -11,11 +11,11 @@ const scoreColor = (v) => v >= 70 ? '#10B981' : v >= 50 ? '#F59E0B' : '#EF4444';
 const MIN_BANK = 60;
 
 const METRIC_KEYS = [
-  { key: 'skor_profitabilitas',  label: 'Profitabilitas'  },
-  { key: 'skor_legalitas',       label: 'Legalitas'       },
-  { key: 'skor_tren_omzet',      label: 'Tren Omzet'      },
-  { key: 'skor_kolektibilitas',  label: 'Kolektibilitas'  },
-  { key: 'skor_keberlanjutan',   label: 'Keberlanjutan'   },
+  { key: 'skor_profitabilitas', label: 'Profitabilitas' },
+  { key: 'skor_legalitas', label: 'Legalitas' },
+  { key: 'skor_tren_omzet', label: 'Tren Omzet' },
+  { key: 'skor_kolektibilitas', label: 'Kolektibilitas' },
+  { key: 'skor_keberlanjutan', label: 'Keberlanjutan' },
   { key: 'skor_kapasitas_utang', label: 'Kapasitas Utang' },
 ];
 
@@ -105,12 +105,12 @@ function DonutChart({ metrics, total }) {
     <svg viewBox="0 0 350 285" className="w-full max-w-[350px] md:max-w-[380px] mx-auto drop-shadow-sm">
       {segments.map((s, i) => {
         if (s.value <= 0) return null; // Sembunyikan label kalau value 0 biar nggak numpuk
-        
+
         const mid = s.midAngle;
         const lineStart = toXY(R + 3, mid);
-        const lineEnd   = toXY(R + 18, mid);
-        const labelPt   = toXY(R + 32, mid);
-        const anchor    = labelPt.x < cx - 10 ? 'end' : labelPt.x > cx + 10 ? 'start' : 'middle';
+        const lineEnd = toXY(R + 18, mid);
+        const labelPt = toXY(R + 32, mid);
+        const anchor = labelPt.x < cx - 10 ? 'end' : labelPt.x > cx + 10 ? 'start' : 'middle';
         return (
           <g key={i}>
             <path d={arcPath(R, innerR, s.startAngle, s.endAngle)} fill={s.color} stroke="white" strokeWidth="1.5" className="hover:opacity-80 transition-opacity" />
@@ -131,8 +131,8 @@ function DonutChart({ metrics, total }) {
 function RadarChart({ metrics, showUser }) {
   const cx = 105, cy = 105, R = 72, N = 6;
   const angle = i => -Math.PI / 2 + i * (2 * Math.PI / N);
-  const toXY  = (r, i) => ({ x: cx + r * Math.cos(angle(i)), y: cy + r * Math.sin(angle(i)) });
-  const poly  = pts => pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const toXY = (r, i) => ({ x: cx + r * Math.cos(angle(i)), y: cy + r * Math.sin(angle(i)) });
+  const poly = pts => pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   const gridLevels = [20, 40, 60, 80, 100];
   const userPoly = poly(metrics.map((m, i) => toXY(R * m.value / 100, i)));
@@ -167,10 +167,10 @@ function RadarChart({ metrics, showUser }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function KesehatanBisnis() {
-  const [tab, setTab]       = useState('update');
-  const [bp, setBp]         = useState(null);
+  const [tab, setTab] = useState('update');
+  const [bp, setBp] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const load = async () => {
@@ -191,17 +191,17 @@ export default function KesehatanBisnis() {
   // Bangun array metrik dari data BP
   const metrics = bp
     ? METRIC_KEYS.map(({ key, label }) => ({
-        name: label,
-        value: bp[key] ?? 0,
-        color: scoreColor(bp[key] ?? 0),
-        minBank: MIN_BANK,
-      }))
+      name: label,
+      value: bp[key] ?? 0,
+      color: scoreColor(bp[key] ?? 0),
+      minBank: MIN_BANK,
+    }))
     : METRIC_KEYS.map(({ label }) => ({ name: label, value: 0, color: '#E5E7EB', minBank: MIN_BANK }));
 
   const total = bp?.skor_total ?? 0;
 
   // Temukan metrik terbaik dan terburuk
-  const best  = bp ? metrics.reduce((a, b) => a.value > b.value ? a : b) : null;
+  const best = bp ? metrics.reduce((a, b) => a.value > b.value ? a : b) : null;
   const worst = bp ? metrics.reduce((a, b) => a.value < b.value ? a : b) : null;
 
   return (
@@ -300,12 +300,12 @@ export default function KesehatanBisnis() {
                   <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-5">
                     <Target size={36} />
                   </div>
-                  <h3 className="text-xl text-gray-900 font-extrabold mb-3">Data Belum Lengkap?</h3>
+                  <h3 className="text-xl text-gray-900 font-extrabold mb-3">Input datamu disini</h3>
                   <p className="text-sm text-gray-500 max-w-sm mb-8 leading-relaxed">
                     Perbarui dokumen dan data keuangan Anda secara berkala agar hasil analisis selalu akurat dan terpercaya oleh bank.
                   </p>
                   <button onClick={() => navigate('/profile?panel=dokumen')} className="px-8 py-3.5 bg-[#60A5FA] text-white text-sm font-bold rounded-full hover:bg-blue-500 hover:-translate-y-0.5 transition-all shadow-lg shadow-blue-200">
-                    Lengkapi dokumen &amp; data di Profil
+                    Input dokumen &amp; data di Profil
                   </button>
                   <p className="mt-6 text-xs text-gray-400">
                     Atau <button onClick={() => setTab('analisis')} className="text-blue-500 font-semibold hover:underline">lihat hasil analisis</button> data saat ini
@@ -365,9 +365,8 @@ export default function KesehatanBisnis() {
             <div className="flex p-1.5 bg-gray-100/80 rounded-2xl mb-8">
               <button
                 onClick={() => setTab(tab === 'analisis' ? 'update' : 'analisis')}
-                className={`flex-1 py-3 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-all ${
-                  tab === 'analisis' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-3 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-all ${tab === 'analisis' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 Analisis
               </button>

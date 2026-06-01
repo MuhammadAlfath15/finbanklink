@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/api';
+import { bankLogin } from '../services/api';
 
 export default function BankLogin() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export default function BankLogin() {
     setError('');
     setLoading(true);
     try {
-      const data = await login(email, password);
+      const data = await bankLogin(email, password);
       
       if (data.role === 'bank') {
         localStorage.setItem('token', data.token);

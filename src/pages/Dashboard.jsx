@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Star, TrendingDown, TrendingUp, CheckCircle, Edit3, X, UploadCloud, FileSpreadsheet, Loader2, Link as LinkIcon, ShieldCheck, Clock, CheckCircle2, XCircle, Landmark, Minus } from 'lucide-react';
-import { getOmzet, saveOmzet, getBusinessProfile, getMySubmissions, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getPublicAds, getPublicArticles } from '../services/api';
+import { getOmzet, saveOmzet, getBusinessProfile, getMySubmissions, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getPublicAds, getPublicArticles, getBanks } from '../services/api';
 import { getDashboardSubmissionCardCopy, pickActiveSubmission } from '../utils/submissionProgress';
 import { toast } from 'react-hot-toast';
 
@@ -9,18 +9,145 @@ import { toast } from 'react-hot-toast';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
+const formatRp = (n) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
+const getBankAccentStyle = (name = '') => {
+  if (name.includes('BCA Syariah')) return { cardBg: 'bg-[#EFF6FF]', accent: 'from-[#3B82F6] to-transparent', textMain: 'text-[#1D4ED8]' };
+  if (name.includes('Mega Syariah')) return { cardBg: 'bg-[#FFFBEB]', accent: 'from-[#F59E0B] to-transparent', textMain: 'text-[#B45309]' };
+  if (name.includes('BCA')) return { cardBg: 'bg-[#E3F2FD]', accent: 'from-[#1E56A0] to-transparent', textMain: 'text-[#1E56A0]' };
+  if (name.includes('Mandiri')) return { cardBg: 'bg-[#FEFCE8]', accent: 'from-[#EAB308] to-transparent', textMain: 'text-[#A16207]' };
+  if (name.includes('BNI')) return { cardBg: 'bg-[#FFF7ED]', accent: 'from-[#FF9A3E] to-transparent', textMain: 'text-[#C2410C]' };
+  if (name.includes('BRI')) return { cardBg: 'bg-[#F0F9FF]', accent: 'from-[#01579B] to-transparent', textMain: 'text-[#01579B]' };
+  if (name.includes('BSI')) return { cardBg: 'bg-[#F0FDFA]', accent: 'from-[#43C6AC] to-transparent', textMain: 'text-[#0F766E]' };
+  if (name.includes('BTN')) return { cardBg: 'bg-[#F8FAFC]', accent: 'from-[#64748B] to-transparent', textMain: 'text-[#334155]' };
+  if (name.includes('CIMB')) return { cardBg: 'bg-[#FEF2F2]', accent: 'from-[#DC2626] to-transparent', textMain: 'text-[#991B1B]' };
+  if (name.includes('Danamon')) return { cardBg: 'bg-[#FFF7ED]', accent: 'from-[#F97316] to-transparent', textMain: 'text-[#C2410C]' };
+  if (name.includes('Mega')) return { cardBg: 'bg-[#FEFCE8]', accent: 'from-[#EAB308] to-transparent', textMain: 'text-[#A16207]' };
+  if (name.includes('OCBC')) return { cardBg: 'bg-[#FFF1F2]', accent: 'from-[#E11D48] to-transparent', textMain: 'text-[#9F1239]' };
+  if (name.includes('Panin')) return { cardBg: 'bg-[#EEF2FF]', accent: 'from-[#4F46E5] to-transparent', textMain: 'text-[#3730A3]' };
+  if (name.includes('Muamalat')) return { cardBg: 'bg-[#FAF5FF]', accent: 'from-[#7E22CE] to-transparent', textMain: 'text-[#6B21A8]' };
+  if (name.includes('BTPN')) return { cardBg: 'bg-[#F7FEE7]', accent: 'from-[#65A30D] to-transparent', textMain: 'text-[#4D7C0F]' };
+  return { cardBg: 'bg-[#F8FAFC]', accent: 'from-[#64748B] to-transparent', textMain: 'text-[#334155]' };
+};
 
+const getBankImage = (bankName = '') => {
+  const normalized = bankName.toLowerCase();
+  if (normalized.includes('bca')) {
+    return 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&q=80';
+  }
+  if (normalized.includes('mandiri')) {
+    return 'https://images.unsplash.com/photo-1554774853-6a56f62c6451?w=600&q=80';
+  }
+  if (normalized.includes('bni')) {
+    return 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&q=80';
+  }
+  if (normalized.includes('bri')) {
+    return 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&q=80';
+  }
+  if (normalized.includes('bsi') || normalized.includes('syariah')) {
+    return 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80';
+};
 
-// Data kartu rekomendasi bank
-const BANK_CARDS = [
-  { img: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&q=80', jumlah: 'Rp. 100.000.000' },
-  { img: 'https://images.unsplash.com/photo-1554774853-6a56f62c6451?w=600&q=80', jumlah: 'Rp. 55.000.000' },
-  { img: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&q=80', jumlah: 'Rp. 30.000.000' },
-  { img: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&q=80', jumlah: 'Rp. 75.000.000' },
-  { img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&q=80', jumlah: 'Rp. 40.000.000' },
-  { img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80', jumlah: 'Rp. 20.000.000' },
-];
+// Detail Modal untuk Simulasi di Dashboard
+function DetailModal({ bank, onClose, onAjukan }) {
+  const { cardBg, accent, textMain } = getBankAccentStyle(bank.nama_bank);
+  const plafonMin = bank.plafon_min ?? 1000000;
+  const plafonMax = bank.plafon_max ?? 50000000;
+  const tenorMin = bank.tenor_min ?? 6;
+  const tenorMax = bank.tenor_max ?? 36;
+  const bungaPct = bank.bunga_persen ?? 0.5;
+  const [pinjaman, setPinjaman] = useState(Math.round((plafonMin + plafonMax) / 2));
+  const [tenor, setTenor] = useState(Math.round((tenorMin + tenorMax) / 2));
+  const cicilanPerBulan = (pinjaman / tenor) + (pinjaman * (bungaPct / 100));
+  const syarat = bank.syarat ?? ['Usaha berjalan minimal 6 bulan.', 'Fotokopi KTP & NIB.', 'Tidak memiliki kredit macet.'];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-gray-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg}`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-20`} />
+          <div className="relative flex justify-between items-start">
+            <div>
+              <h2 className={`text-xl font-bold ${textMain}`}>{bank.nama_bank}</h2>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-0.5">Nama Produk : {bank.nama_produk}</p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain}`}>
+                <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.25C17.25 21.15 21 16.25 21 11V5l-9-4z" />
+              </svg>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Kecocokan</span>
+              <span className={`inline-block text-white text-[11px] font-bold px-3 py-0.5 rounded-full ${bank.skor_kecocokan >= 60 ? 'bg-[#2ECC71]' : 'bg-red-500'}`}>
+                {bank.skor_kecocokan}%
+              </span>
+            </div>
+          </div>
+          <hr className="mt-3 border-gray-300/60" />
+        </div>
+
+        {/* Body */}
+        <div className="px-5 pt-4 pb-2 space-y-5">
+          <section>
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">Ringkasan Produk:</h3>
+            <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
+              <li className="flex items-start gap-2"><span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />Plafon: {formatRp(plafonMin)} – {formatRp(plafonMax)}</li>
+              <li className="flex items-start gap-2"><span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />Tenor: {tenorMin} bulan – {tenorMax} bulan</li>
+              <li className="flex items-start gap-2"><span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />Suku Bunga: {bungaPct}% Flat / bulan</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">Simulasi Pinjaman (Interaktif):</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>Jumlah Pinjaman</span><span className="font-bold text-gray-800 dark:text-gray-200">{formatRp(pinjaman)}</span></div>
+                <input type="range" min={plafonMin} max={plafonMax} step={500000} value={pinjaman} onChange={(e) => setPinjaman(Number(e.target.value))} className="w-full accent-blue-600 h-1.5 rounded-full cursor-pointer" />
+                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5"><span>{formatRp(plafonMin)}</span><span>{formatRp(plafonMax)}</span></div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>Tenor</span><span className="font-bold text-gray-800 dark:text-gray-200">{tenor} Bulan</span></div>
+                <input type="range" min={tenorMin} max={tenorMax} step={6} value={tenor} onChange={(e) => setTenor(Number(e.target.value))} className="w-full accent-blue-600 h-1.5 rounded-full cursor-pointer" />
+                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5"><span>{tenorMin} bln</span><span>{tenorMax} bln</span></div>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-700/50 rounded-xl px-4 py-3 flex justify-between items-center">
+                <span className="text-xs text-blue-700 dark:text-blue-300 font-semibold">Estimasi Cicilan / Bulan</span>
+                <span className="text-base font-black text-blue-800 dark:text-blue-200">{formatRp(cicilanPerBulan)}</span>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">Syarat & Ketentuan:</h3>
+            <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
+              {syarat.map((s, i) => (<li key={i} className="flex items-start gap-2"><span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />{s}</li>))}
+            </ul>
+          </section>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 rounded-b-2xl">
+          <button onClick={onClose} className="py-4 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border-r border-gray-200 dark:border-gray-700 transition-colors">Kembali</button>
+          <button
+            onClick={onAjukan}
+            disabled={bank.skor_kecocokan < 60}
+            className={`py-4 text-sm font-bold transition-colors ${bank.skor_kecocokan < 60 ? 'text-gray-400 cursor-not-allowed bg-gray-50' : 'text-blue-600 hover:text-blue-800'}`}
+          >
+            {bank.skor_kecocokan < 60 ? 'Skor Kurang' : 'Ajukan Sekarang'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function buildPath(points, W, H, padX, padY) {
   const usableW = W - padX * 2;
@@ -201,6 +328,8 @@ export default function Dashboard() {
 
   // State business profile (skor kesehatan bisnis)
   const [businessProfile, setBusinessProfile] = useState(null);
+  const [recommendedBanks, setRecommendedBanks] = useState([]);
+  const [activeBank, setActiveBank] = useState(null);
 
   // State untuk modal input omzet
   const [isOmzetModalOpen, setIsOmzetModalOpen] = useState(false);
@@ -320,9 +449,48 @@ export default function Dashboard() {
   // Load data omzet & business profile dari backend
   useEffect(() => {
     fetchOmzet();
-    getBusinessProfile()
-      .then(data => setBusinessProfile(data))
-      .catch(err => console.error('Gagal fetch business profile:', err));
+    
+    // Fetch profile and banks together to calculate match scores dynamically
+    Promise.all([
+      getBusinessProfile().catch(() => ({ skor_total: 0 })),
+      getBanks().catch(() => [])
+    ]).then(([profileData, bankData]) => {
+      setBusinessProfile(profileData);
+      const userScore = profileData?.skor_total ?? 0;
+      
+      const enhancedBanks = bankData.map(bank => {
+        const standard = bank.min_score || 350;
+        let matchScore = Math.round((userScore / standard) * 100);
+        if (userScore < standard) {
+          matchScore = Math.min(matchScore, 59);
+        } else {
+          matchScore = Math.min(100, 60 + Math.round(((userScore - standard) / (600 - standard)) * 40));
+        }
+        return { ...bank, skor_kecocokan: matchScore };
+      });
+      
+      // Deduplicate enhancedBanks by bank ID (id) to avoid duplicates from multiple category assignments
+      const uniqueBanks = [];
+      const seenIds = new Set();
+      enhancedBanks.forEach(bank => {
+        if (!seenIds.has(bank.id)) {
+          seenIds.add(bank.id);
+          uniqueBanks.push(bank);
+        }
+      });
+      
+      // Filter banks promoted by admin, fallback to top match score banks if empty
+      const promoted = uniqueBanks.filter(b => b.is_promoted);
+      if (promoted.length > 0) {
+        setRecommendedBanks(promoted);
+      } else {
+        const topRecommendations = uniqueBanks
+          .sort((a, b) => b.skor_kecocokan - a.skor_kecocokan)
+          .slice(0, 4);
+        setRecommendedBanks(topRecommendations);
+      }
+    }).catch(err => console.error('Gagal fetch bank/profile rekomendasi:', err));
+
     fetchSubmissions();
     fetchAllNotifications();
     getPublicAds().then((rows) => {
@@ -639,54 +807,56 @@ export default function Dashboard() {
                     <div
                       key={sub.submission_id || index}
                       onClick={() => navigate('/riwayat')}
-                      className={`relative bg-white rounded-2xl border border-gray-100 shadow-sm p-3.5 flex flex-col text-left w-full hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${
+                      className={`relative bg-gradient-to-b from-white to-gray-50/50 dark:from-slate-900 dark:to-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-3.5 flex flex-col text-left w-full hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all duration-300 cursor-pointer group overflow-hidden ${
                         activeSubmissions.length > 1 ? 'border-l-4 border-l-blue-500' : ''
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                      {/* Top Row: Bank Badge & Short ID */}
+                      <div className="flex items-center justify-between gap-1 mb-2">
+                        <span 
+                          className="text-[8px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-md uppercase tracking-wider truncate max-w-[80px]" 
+                          title={sub.nama_bank}
+                        >
                           {sub.nama_bank}
                         </span>
-                        <span className="text-[9px] font-bold text-gray-400">
-                          {sub.id}
+                        <span className="text-[8px] font-bold text-gray-400 select-none">
+                          #{sub.id.split('-').pop()}
                         </span>
                       </div>
                       
-                      <h4 className="text-xs font-bold text-gray-800 truncate mb-1">
+                      {/* Product Name */}
+                      <h4 className="text-[10px] font-extrabold text-gray-800 dark:text-gray-200 leading-tight mb-1.5 line-clamp-2">
                         {sub.nama_produk}
                       </h4>
 
-                      <p className="text-[10px] text-gray-500 font-medium leading-tight mb-2.5 min-h-[24px]">
-                        {statusDesc}
-                      </p>
+                      {/* Segmented Progress Bar */}
+                      {effStatus !== 'dibatalkan' && (
+                        <div className="w-full bg-gray-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden flex gap-[2px] mb-2.5">
+                          {[1, 2, 3, 4].map((step) => {
+                            let barColor = "bg-gray-200 dark:bg-slate-700/50";
+                            if (step < dotsActive) {
+                              barColor = "bg-blue-500";
+                            } else if (step === dotsActive) {
+                              barColor = effStatus === 'disetujui' ? 'bg-emerald-500' : effStatus === 'ditolak' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse';
+                            }
+                            return <div key={step} className={`flex-1 h-full ${barColor}`} />;
+                          })}
+                        </div>
+                      )}
 
-                      <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-900/40 p-2 rounded-xl border border-gray-100/50">
+                      {/* Phase Status & Description */}
+                      <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             effStatus === 'disetujui' ? 'bg-emerald-500' : effStatus === 'ditolak' || effStatus === 'dibatalkan' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'
                           }`} />
-                          <span className="text-[9px] font-extrabold text-gray-700 tracking-wide">
+                          <span className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-wider leading-none">
                             {statusText}
                           </span>
                         </div>
-
-                        {effStatus !== 'dibatalkan' && (
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4].map((dot) => {
-                              const isCompleted = dot <= dotsActive;
-                              const isCurrent = dot === dotsActive && !['disetujui', 'ditolak'].includes(effStatus);
-                              return (
-                                <div
-                                  key={dot}
-                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                    isCurrent ? 'bg-amber-400 scale-125 animate-pulse' : (isCompleted ? 'bg-blue-600' : 'bg-gray-200')
-                                  }`}
-                                  title={`Tahap ${dot}`}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
+                        <p className="text-[8px] text-gray-500 dark:text-gray-400 font-medium leading-normal mt-1 min-h-[30px] line-clamp-3">
+                          {statusDesc}
+                        </p>
                       </div>
                     </div>
                   );
@@ -960,57 +1130,137 @@ export default function Dashboard() {
             window.addEventListener('mouseup', onUp);
           }}
         >
-          {BANK_CARDS.map((card, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 w-72">
-              {/* Foto */}
-              <div className="relative h-44 overflow-hidden">
-                <img src={card.img} alt="bank" className="w-full h-full object-cover" />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <p className="text-white text-[10px] font-semibold">Pinjaman 32864/BA/982736-18/XIII/2026</p>
+          {recommendedBanks.length === 0 ? (
+            /* Skeleton Loader */
+            [1, 2, 3, 4].map((loaderIdx) => (
+              <div key={loaderIdx} className="bg-white rounded-[28px] border border-gray-100 shadow-sm p-4 w-72 flex-shrink-0 animate-pulse space-y-4">
+                <div className="h-40 bg-gray-200 rounded-2xl" />
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-2/3" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  <div className="h-2 bg-gray-200 rounded w-full" />
+                  <div className="h-8 bg-gray-200 rounded-xl w-full" />
                 </div>
               </div>
+            ))
+          ) : (
+            recommendedBanks.map((bank, i) => {
+              const { cardBg, accent, textMain } = getBankAccentStyle(bank.nama_bank);
+              const score = bank.skor_kecocokan;
+              
+              // Tentukan salinan teks Peluang Persetujuan yang "menjual" & mudah dimengerti
+              let approvalLabel = 'Cukup';
+              let approvalColor = 'text-amber-600 dark:text-amber-400';
+              let progressColor = 'from-amber-400 to-amber-500';
+              
+              if (score >= 80) {
+                approvalLabel = 'Sangat Tinggi';
+                approvalColor = 'text-emerald-600 dark:text-emerald-400';
+                progressColor = 'from-emerald-400 to-emerald-500';
+              } else if (score >= 60) {
+                approvalLabel = 'Tinggi';
+                approvalColor = 'text-green-600 dark:text-green-400';
+                progressColor = 'from-green-400 to-green-500';
+              } else {
+                approvalLabel = 'Cukup / Perlu Optimasi';
+                approvalColor = 'text-rose-500 dark:text-rose-400';
+                progressColor = 'from-rose-400 to-rose-500';
+              }
 
-              {/* Body */}
-              <div className="p-4">
-                {/* Tags */}
-                <div className="flex gap-1.5 flex-wrap mb-2">
-                  <span className="bg-blue-100 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded-full">20 Jam lagi</span>
-                  <span className="bg-gray-100 text-gray-600 text-[9px] font-semibold px-2 py-0.5 rounded-full">★ 9+</span>
-                  <span className="bg-gray-100 text-gray-600 text-[9px] font-semibold px-2 py-0.5 rounded-full">🛡️ Proteksi Asuransi</span>
-                </div>
+              return (
+                <div
+                  key={bank.id || i}
+                  onClick={() => setActiveBank(bank)}
+                  className="group bg-white dark:bg-[#111c3a] rounded-[28px] border border-gray-100/80 dark:border-slate-800/80 shadow-md overflow-hidden hover:shadow-xl hover:border-blue-300/50 dark:hover:border-blue-500/30 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex-shrink-0 w-72 flex flex-col"
+                >
+                  {/* Bagian Atas: Gambar dengan Gradient Overlay */}
+                  <div className="relative h-40 overflow-hidden shrink-0">
+                    <img
+                      src={bank.promo_image_url || getBankImage(bank.nama_bank)}
+                      alt={bank.nama_bank}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    
+                    {/* Dark gradient overlay so white text stands out perfectly */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent z-10" />
+                    
+                    {/* Bank & Product Text Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                        <p className="text-white text-xs font-black tracking-tight drop-shadow-sm">{bank.nama_bank}</p>
+                      </div>
+                      <h4 className="text-white/80 text-[10px] font-bold mt-0.5 truncate drop-shadow-sm">
+                        {bank.nama_produk}
+                      </h4>
+                    </div>
 
-                {/* Progress */}
-                <p className="text-[10px] text-gray-500 mb-1">Telah terkumpul 67% dari 25 pendana</p>
-                <div className="w-full h-1 bg-gray-100 rounded-full mb-3">
-                  <div className="h-1 bg-blue-500 rounded-full" style={{ width: '67%' }} />
-                </div>
+                    {/* Dynamic Match Score Badge Float */}
+                    <div className="absolute top-4 right-4 z-20">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg backdrop-blur-md bg-white/90 dark:bg-slate-900/90 shadow-sm text-[9px] font-black tracking-wide ${approvalColor}`}>
+                        🎯 {score}% Match
+                      </span>
+                    </div>
+                  </div>
 
-                {/* Detail Grid */}
-                <div className="grid grid-cols-3 gap-x-2 gap-y-2 text-[10px]">
-                  <div>
-                    <p className="text-gray-400">Jumlah Pinjaman</p>
-                    <p className="font-bold text-gray-800 text-[11px]">{card.jumlah}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Tenor</p>
-                    <p className="font-bold text-gray-800 text-[11px]">8 Bulan</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Bunga Efektif</p>
-                    <p className="font-bold text-gray-800 text-[11px]">12.0%</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-400">Frekuensi Angsuran Pokok</p>
-                    <p className="font-bold text-gray-800 text-[11px]">Bulanan</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Agunan</p>
-                    <p className="font-bold text-gray-800 text-[11px]">Tidak ada</p>
+                  {/* Body Kartu */}
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    {/* Main selling point: Plafon & Bunga */}
+                    <div className="space-y-4">
+                      {/* Plafon Maksimal - Hero Section */}
+                      <div className="text-left">
+                        <span className="text-[8px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Batas Modal Maksimal</span>
+                        <span className="text-lg font-black text-slate-800 dark:text-white tracking-tight block mt-0.5">
+                          {formatRp(bank.plafon_max)}
+                        </span>
+                      </div>
+
+                      {/* Info Bar (Bunga & Tenor) */}
+                      <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-950/40 rounded-2xl p-3 border border-slate-100/50 dark:border-slate-800/40">
+                        <div className="text-left border-r border-slate-200/50 dark:border-slate-800/50 pr-2">
+                          <span className="text-[8px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Bunga Ringan</span>
+                          <span className="text-xs font-black text-slate-700 dark:text-slate-200 block mt-0.5">
+                            {bank.bunga_persen}% <span className="text-[8px] font-semibold text-gray-400 dark:text-gray-500">/ Bln</span>
+                          </span>
+                        </div>
+                        <div className="text-left pl-1">
+                          <span className="text-[8px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Tenor s/d</span>
+                          <span className="text-xs font-black text-slate-700 dark:text-slate-200 block mt-0.5">
+                            {bank.tenor_max} <span className="text-[8px] font-semibold text-gray-400 dark:text-gray-500">Bulan</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Peluang Persetujuan */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-[9px]">
+                          <span className="text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Peluang Disetujui</span>
+                          <span className={`font-black uppercase tracking-wider text-[9px] ${approvalColor}`}>
+                            {approvalLabel}
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-950/50 rounded-full overflow-hidden border border-slate-100/40 dark:border-slate-800/30">
+                          <div
+                            className={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${progressColor}`}
+                            style={{ width: `${score}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interactive CTA button at the bottom */}
+                    <div className="mt-5 pt-3 border-t border-slate-50 dark:border-slate-800/30 flex items-center justify-between text-blue-600 dark:text-blue-400 font-extrabold text-xs transition-colors group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                      <span>Simulasi & Ajukan</span>
+                      <div className="w-6 h-6 rounded-full bg-blue-50 dark:bg-slate-800/50 text-blue-600 dark:text-blue-400 flex items-center justify-center transition-all duration-300 group-hover:bg-blue-600 dark:group-hover:bg-blue-500 group-hover:text-white dark:group-hover:text-white group-hover:translate-x-1">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -1194,6 +1444,18 @@ export default function Dashboard() {
         activity={activeActivity}
         onClose={() => setActiveActivity(null)}
       />
+
+      {/* ── Modal Detail & Simulasi Bank Rekomendasi ── */}
+      {activeBank && (
+        <DetailModal
+          bank={activeBank}
+          onClose={() => setActiveBank(null)}
+          onAjukan={() => {
+            setActiveBank(null);
+            navigate('/ajukan-pinjaman', { state: { bank: activeBank } });
+          }}
+        />
+      )}
 
     </>
   );

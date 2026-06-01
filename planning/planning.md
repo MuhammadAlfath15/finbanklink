@@ -1,1 +1,3 @@
-kalo dipikir-pikir halaman bank dashboard kayanya akan kacau ketika melayanai user banyak sekaligus dalam waktu yang berbarengan misalnya ada 100 pengajuan dalam 1 hari/1 waktu.
+pada admin dashboard di halaman user dan berkas keamanan gua bisa lihat data overview dari setiap akun user. nah masalahnya kalo gua liat setiap submission yang di jalani user saat pengajuan modal itu berkasnya akan terkirim ke halaman berkas keamanan di admin dashboard dan itu mengakibatkan pengiriman berkas yang berulang ulang di halaman admin dashboard seperti KTP dan NIB user.
+
+bisa ga lu buat jadi ga double gitu biar ga numpuk oleh KTP dan NIB karena untuk pemberkasan submission pengajuan modal kan udah masuk di halaman bank dashboard dan biarkan aktor bank yang melihat.

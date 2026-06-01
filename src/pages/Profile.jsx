@@ -513,9 +513,7 @@ const Pengaturan = () => {
   });
   const privItems = [
     { key: 'profil_publik',  label: 'Matchmaking Usaha Terenkripsi', desc: 'Bank mitra dapat mencocokkan kriteria mereka dengan usahamu secara anonim. Nama & kontak dibagikan hanya jika kamu menyetujui penawaran' },
-    { key: 'skor_publik',    label: 'Visibilitas Skor Kesehatan Bisnis', desc: 'Bank mitra dapat melihat total skor kesehatan bisnismu di dashboard pencarian modal untuk mempermudah kurasi awal' },
     { key: 'analitik',       label: 'Analitik Anonim Kinerja Platform', desc: 'Kirim data analitik interaksi terenkripsi tanpa menyertakan dokumen finansial untuk optimasi sistem' },
-    { key: 'akses_dokumen',  label: 'Akses Dokumen Terbatas (OTP)', desc: 'Mengunci berkas finansial (Rekening Koran, NIB, KTP). Bank hanya bisa membukanya melalui verifikasi kode OTP nasabah' },
   ];
   const togglePriv = (key, val) => {
     const next = { ...priv, [key]: val };

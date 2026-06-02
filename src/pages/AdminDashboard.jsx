@@ -856,9 +856,12 @@ export default function AdminDashboard() {
                       {adForm.description && (
                         <p className="text-white/85 text-[10px] leading-relaxed mb-2 line-clamp-2">{adForm.description}</p>
                       )}
-                      <div className="px-4 py-1.5 bg-white text-gray-900 text-[10px] font-bold rounded-full flex items-center gap-1.5">
-                        {adForm.cta || 'Pelajari'}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3 stroke-2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[9px] font-black text-white tracking-wider select-none shadow-sm">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.8)]"></span>
+                        </span>
+                        <span>{adForm.cta || 'Penawaran Spesial'}</span>
                       </div>
                     </div>
 
@@ -982,11 +985,11 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-slate-600">Teks Tombol CTA</label>
+                      <label className="block text-xs font-semibold text-slate-600">Label Aksen / Tag Sorotan (CTA)</label>
                       <input
                         type="text"
                         className="w-full px-3 py-2 border rounded-lg border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        placeholder="Contoh: Ajukan Sekarang"
+                        placeholder="Contoh: Coba Sekarang, Terbatas, Bunga Rendah"
                         value={adForm.cta}
                         onChange={(e) => setAdForm({ ...adForm, cta: e.target.value })}
                       />
@@ -1170,7 +1173,7 @@ export default function AdminDashboard() {
                             {ad.description && (
                               <p className="text-[10px] text-slate-500 line-clamp-2">{ad.description}</p>
                             )}
-                            <p className="text-[10px] text-slate-500 font-semibold">CTA: <span className="text-blue-600 font-extrabold">{ad.cta || 'Pelajari'}</span></p>
+                            <p className="text-[10px] text-slate-500 font-semibold">Tag Sorotan: <span className="text-blue-600 font-extrabold">{ad.cta || 'Penawaran Spesial'}</span></p>
                           </div>
 
                           <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between gap-2">

@@ -433,6 +433,11 @@ export const getAdminUserDocuments = async () => {
   return res.data;
 };
 
+export const auditUserDocument = async (payload) => {
+  const res = await http.post('/admin/users/documents/audit', payload);
+  return res.data;
+};
+
 // ─── OTP PINJAMAN ─────────────────────────────────────────────────────────────
 
 /**

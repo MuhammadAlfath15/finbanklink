@@ -20,6 +20,7 @@ import {
   deleteAdminArticle,
   deleteAdminAd,
   updateAdminAd,
+  auditUserDocument,
 } from '../services/api';
 import {
   Eye,
@@ -140,7 +141,15 @@ export default function AdminDashboard() {
   const [adStatusFilter, setAdStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
 
   // New Article States for premium features
+  const [editingAdId, setEditingAdId] = useState('');
   const [editingArticleId, setEditingArticleId] = useState('');
+  const [rejectModal, setRejectModal] = useState({
+    isOpen: false,
+    userId: '',
+    docType: '',
+    docLabel: '',
+    feedback: '',
+  });
   const [articlePreviewUrl, setArticlePreviewUrl] = useState(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewingArticle, setReviewingArticle] = useState(null);
@@ -165,6 +174,40 @@ export default function AdminDashboard() {
         }
       }
     );
+  };
+
+  const openRejectModal = (userId, docType, docLabel) => {
+    setRejectModal({
+      isOpen: true,
+      userId,
+      docType,
+      docLabel,
+      feedback: '',
+    });
+  };
+
+  const handleAuditDocument = async (userId, docType, status, customFeedback = '') => {
+    try {
+      const res = await auditUserDocument({
+        user_id: userId,
+        document_type: docType,
+        status,
+        feedback: customFeedback
+      });
+      toast.success(res.message || 'Audit dokumen berhasil diperbarui!');
+      loadAll();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Gagal memperbarui audit dokumen.');
+    }
+  };
+
+  const submitRejection = async () => {
+    if (!rejectModal.feedback.trim()) {
+      toast.error('Alasan penolakan berkas wajib diisi!');
+      return;
+    }
+    await handleAuditDocument(rejectModal.userId, rejectModal.docType, 'rejected', rejectModal.feedback);
+    setRejectModal({ isOpen: false, userId: '', docType: '', docLabel: '', feedback: '' });
   };
 
   const handleToggleAdStatus = async (ad) => {
@@ -364,32 +407,57 @@ export default function AdminDashboard() {
     setAdForm(emptyAd);
     setAdImageFile(null);
     setAdImagePreviewUrl(null);
+    setEditingAdId('');
     if (adFileInputRef.current) adFileInputRef.current.value = '';
   };
 
-  const createAd = async (e) => {
+  const handleEditAd = (ad) => {
+    setEditingAdId(ad.id);
+    setAdForm({
+      badge: ad.badge || '',
+      title: ad.title || '',
+      description: ad.description || '',
+      cta: ad.cta || '',
+      sort_order: ad.sort_order || 0,
+      is_active: ad.is_active,
+      bg_color_from: ad.bg_color_from || '#001D4A',
+      bg_color_to: ad.bg_color_to || '#0052CC',
+    });
+    setAdImagePreviewUrl(ad.image_url);
+    setAdImageFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const createOrUpdateAd = async (e) => {
     e.preventDefault();
-    if (!adImageFile) {
+    if (!editingAdId && !adImageFile) {
       toast.error('Silakan pilih gambar banner terlebih dahulu.');
       return;
     }
     try {
       const formData = new FormData();
-      formData.append('badge', adForm.badge);
-      formData.append('title', adForm.title);
+      formData.append('badge', adForm.badge || '');
+      formData.append('title', adForm.title || '');
       formData.append('description', adForm.description || '');
-      formData.append('cta', adForm.cta || 'Pelajari');
+      formData.append('cta', adForm.cta || 'Penawaran');
       formData.append('sort_order', String(adForm.sort_order || 0));
       formData.append('is_active', adForm.is_active ? '1' : '0');
       formData.append('bg_color_from', adForm.bg_color_from || '#001D4A');
       formData.append('bg_color_to', adForm.bg_color_to || '#0052CC');
-      formData.append('image', adImageFile);
-      await createAdminAd(formData);
+      if (adImageFile) {
+        formData.append('image', adImageFile);
+      }
+      if (editingAdId) {
+        await updateAdminAd(editingAdId, formData);
+        toast.success('Iklan berhasil diperbarui!');
+      } else {
+        await createAdminAd(formData);
+        toast.success('Iklan berhasil diterbitkan dan tampil di beranda user!');
+      }
       resetAdForm();
-      toast.success('Iklan berhasil diterbitkan dan tampil di beranda user!');
       loadAll();
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Tambah iklan gagal.');
+      toast.error(error?.response?.data?.message || 'Gagal menyimpan iklan.');
     }
   };
 
@@ -813,11 +881,11 @@ export default function AdminDashboard() {
               {/* Tambah Iklan & Board Panel */}
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
                 
-                {/* Form Tambah Iklan */}
+                {/* Form Tambah/Edit Iklan */}
                 <div className="xl:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                     <Megaphone size={16} className="text-blue-500" />
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Buat Iklan Banner</h3>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">{editingAdId ? 'Edit Iklan Banner' : 'Buat Iklan Banner'}</h3>
                   </div>
 
                   {/* Live Preview Banner — persis seperti tampilan user */}
@@ -856,9 +924,12 @@ export default function AdminDashboard() {
                       {adForm.description && (
                         <p className="text-white/85 text-[10px] leading-relaxed mb-2 line-clamp-2">{adForm.description}</p>
                       )}
-                      <div className="px-4 py-1.5 bg-white text-gray-900 text-[10px] font-bold rounded-full flex items-center gap-1.5">
-                        {adForm.cta || 'Pelajari'}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3 stroke-2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      <div className="inline-flex items-center gap-1 text-white/90 text-[8px] font-extrabold uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-lg select-none">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_4px_rgba(52,211,153,0.8)]"></span>
+                        </span>
+                        <span>{adForm.cta || 'Penawaran'}</span>
                       </div>
                     </div>
 
@@ -866,11 +937,11 @@ export default function AdminDashboard() {
                     <span className="absolute bottom-2 right-3 text-[8px] font-bold text-white/50 uppercase tracking-widest">Preview Live</span>
                   </div>
 
-                  <form onSubmit={createAd} className="p-5 space-y-3.5">
+                  <form onSubmit={createOrUpdateAd} className="p-5 space-y-3.5">
 
                     {/* Upload Gambar */}
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold text-slate-600">Gambar Banner <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-600">Gambar Banner {!editingAdId && <span className="text-red-500">*</span>}</label>
                       <div className="relative border-2 border-dashed border-slate-300 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/30 rounded-xl transition-all cursor-pointer overflow-hidden">
                         <input
                           type="file"
@@ -982,11 +1053,11 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-slate-600">Teks Tombol CTA</label>
+                      <label className="block text-xs font-semibold text-slate-600">Teks Sorotan / Highlight Iklan</label>
                       <input
                         type="text"
                         className="w-full px-3 py-2 border rounded-lg border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        placeholder="Contoh: Ajukan Sekarang"
+                        placeholder="Contoh: Penawaran Spesial / Cashback 1% / Kuota Terbatas"
                         value={adForm.cta}
                         onChange={(e) => setAdForm({ ...adForm, cta: e.target.value })}
                       />
@@ -1018,20 +1089,31 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex gap-2 pt-1">
+                      {editingAdId && (
+                        <button
+                          type="button"
+                          onClick={resetAdForm}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 hover:border-slate-300 transition-all cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                      )}
                       <button
                         type="submit"
                         className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-200 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
                       >
                         <Megaphone size={14} />
-                        Terbitkan Iklan
+                        {editingAdId ? 'Simpan Perubahan' : 'Terbitkan Iklan'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={resetAdForm}
-                        className="px-3 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-200 transition-all cursor-pointer"
-                      >
-                        Reset
-                      </button>
+                      {!editingAdId && (
+                        <button
+                          type="button"
+                          onClick={resetAdForm}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg border border-slate-200 transition-all cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
                     </div>
                   </form>
                 </div>
@@ -1170,28 +1252,36 @@ export default function AdminDashboard() {
                             {ad.description && (
                               <p className="text-[10px] text-slate-500 line-clamp-2">{ad.description}</p>
                             )}
-                            <p className="text-[10px] text-slate-500 font-semibold">CTA: <span className="text-blue-600 font-extrabold">{ad.cta || 'Pelajari'}</span></p>
+                            <p className="text-[10px] text-slate-500 font-semibold">Highlight: <span className="text-indigo-600 font-extrabold">{ad.cta || 'Penawaran'}</span></p>
                           </div>
 
-                          <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between gap-2">
+                          <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleToggleAdStatus(ad)}
-                              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+                              className={`flex items-center justify-center gap-1 px-1.5 py-1.5 text-[9px] font-bold rounded-lg transition-colors cursor-pointer flex-1 ${
                                 ad.is_active
                                   ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200'
                                   : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
                               }`}
                             >
-                              {ad.is_active ? <X size={11} /> : <Check size={11} />}
-                              <span>{ad.is_active ? 'Nonaktifkan' : 'Aktifkan'}</span>
+                              {ad.is_active ? <X size={10} /> : <Check size={10} />}
+                              <span>{ad.is_active ? 'Nonaktif' : 'Aktif'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditAd(ad)}
+                              className="flex items-center justify-center gap-1 px-1.5 py-1.5 text-[9px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors cursor-pointer flex-1"
+                            >
+                              <Edit2 size={10} />
+                              <span>Edit</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteAd(ad.id)}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 rounded-lg transition-colors cursor-pointer"
+                              className="flex items-center justify-center gap-1 px-1.5 py-1.5 text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 rounded-lg transition-colors cursor-pointer flex-1"
                             >
-                              <Trash2 size={11} />
+                              <Trash2 size={10} />
                               <span>Hapus</span>
                             </button>
                           </div>
@@ -2080,18 +2170,76 @@ export default function AdminDashboard() {
                           {(u.documents || []).length === 0 ? (
                             <span className="text-slate-400 italic">Belum ada dokumen yang diunggah</span>
                           ) : (
-                            (u.documents || []).map((d, idx) => (
-                              <a
-                                key={`${u.id}-${idx}`}
-                                href={d.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-100 hover:border-blue-200 text-blue-700 font-bold rounded-lg transition-colors text-[10px] mr-2 mb-2"
-                              >
-                                <FileText size={10} />
-                                <span>{d.type.toUpperCase().replace('_PATH', '').replace('_UPLOAD', '')} ({d.extension ? d.extension.toUpperCase() : '-'})</span>
-                              </a>
-                            ))
+                            (u.documents || []).map((d, idx) => {
+                              const docLabel = d.type.toUpperCase().replace('_PATH', '').replace('_UPLOAD', '');
+                              
+                              // Determine status badge
+                              let statusBadge = null;
+                              if (d.status === 'approved') {
+                                statusBadge = <span className="inline-block px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[8px] font-black uppercase">DISETUJUI</span>;
+                              } else if (d.status === 'rejected') {
+                                statusBadge = <span className="inline-block px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[8px] font-black uppercase">DITOLAK</span>;
+                              } else {
+                                statusBadge = <span className="inline-block px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[8px] font-black uppercase">PENDING AUDIT</span>;
+                              }
+
+                              return (
+                                <div key={`${u.id}-${idx}`} className="flex flex-col bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3.5 shadow-sm max-w-xl text-left">
+                                  {/* Row 1: Doc Type & Link & Status */}
+                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2 mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={d.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-blue-600 font-extrabold hover:text-blue-800 transition-colors hover:underline text-[10px]"
+                                      >
+                                        <FileText size={12} className="text-slate-500" />
+                                        <span>{docLabel} ({d.extension ? d.extension.toUpperCase() : '-'})</span>
+                                      </a>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {statusBadge}
+                                    </div>
+                                  </div>
+
+                                  {/* Row 2: Reject Feedback if exists */}
+                                  {d.status === 'rejected' && d.feedback && (
+                                    <div className="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2 font-medium leading-relaxed mb-2.5">
+                                      <strong>Alasan Penolakan:</strong> {d.feedback}
+                                    </div>
+                                  )}
+
+                                  {/* Row 3: Action Buttons */}
+                                  <div className="flex items-center gap-2 justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAuditDocument(u.id, d.type, 'approved')}
+                                      className={`flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                        d.status === 'approved'
+                                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm pointer-events-none'
+                                          : 'bg-white border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50/30'
+                                      }`}
+                                    >
+                                      <Check size={10} />
+                                      <span>Setujui</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openRejectModal(u.id, d.type, docLabel)}
+                                      className={`flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                        d.status === 'rejected'
+                                          ? 'bg-rose-600 border-rose-600 text-white shadow-sm pointer-events-none'
+                                          : 'bg-white border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-700 hover:bg-rose-50/30'
+                                      }`}
+                                    >
+                                      <X size={10} />
+                                      <span>Tolak Berkas</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
                           )}
                         </td>
                       </tr>
@@ -2441,6 +2589,71 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🔴 MODAL PENOLAKAN DOKUMEN (CUSTOM PROMPT) */}
+      {rejectModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+            onClick={() => setRejectModal(prev => ({ ...prev, isOpen: false }))} 
+          />
+          
+          {/* Modal Container */}
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-6 z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5 mb-4">
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-950/20 rounded-xl flex items-center justify-center text-red-500">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">Tolak Berkas {rejectModal.docLabel}</h3>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Berikan alasan audit penolakan untuk pengguna</p>
+              </div>
+            </div>
+
+            {/* Warning Info */}
+            <div className="bg-red-50/55 dark:bg-red-950/10 border border-red-100/50 dark:border-red-900/30 rounded-xl p-3.5 mb-4 text-[10px] text-red-600 dark:text-red-400 font-semibold leading-relaxed flex gap-2.5">
+              <span className="text-xs">⚠️</span>
+              <p>Tindakan ini akan mengirimkan notifikasi instan ke dasbor user dan otomatis menurunkan Skor Kesehatan Bisnis mereka sampai berkas yang valid diunggah kembali.</p>
+            </div>
+
+            {/* Input Form */}
+            <div className="space-y-1.5 mb-5">
+              <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Catatan / Alasan Penolakan <span className="text-red-500">*</span></label>
+              <textarea
+                rows={4}
+                className="w-full px-3 py-2.5 border rounded-xl border-slate-200 dark:border-slate-800 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-500 bg-slate-50/30 dark:bg-slate-950/40 dark:text-white placeholder-slate-400 resize-none"
+                placeholder="Contoh: Foto KTP terpotong/buram, mohon unggah ulang dengan pencahayaan yang jelas agar NIK terbaca..."
+                value={rejectModal.feedback}
+                onChange={(e) => setRejectModal(prev => ({ ...prev, feedback: e.target.value }))}
+                autoFocus
+              />
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex gap-3 justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setRejectModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={submitRejection}
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+              >
+                <X size={12} />
+                <span>Tolak Berkas</span>
+              </button>
             </div>
 
           </div>

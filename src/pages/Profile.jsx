@@ -3,7 +3,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   User, FileText, Settings, CreditCard, Info, ChevronRight, Upload, Loader2, Camera,
   CheckCircle2, Lock, Bell, Globe, Eye, EyeOff, Shield, Trash2, ChevronDown, X, AlertTriangle, Moon, Sun,
-  Activity, Landmark, Sparkles, TrendingUp, BadgeCheck,
+  Activity, Landmark, Sparkles, TrendingUp, BadgeCheck, Clock,
 } from 'lucide-react';
 import { getProfile, updateProfile, getBusinessProfile, updateBusinessProfile, changePassword, deleteAccount } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -138,57 +138,153 @@ const PersonalInfo = ({ user, onUpdate }) => {
 };
 
 /** Tombol unggah — sinkron dengan Update Bisnis / API business-profile */
-const BizFileButton = ({ id, label, hint, file, hasExisting, accept, onChange }) => {
+const BizFileButton = ({ id, label, hint, file, hasExisting, status, feedback, accept, onChange }) => {
   const inputRef = useRef(null);
   const ok = file || hasExisting;
+  const isPending = ok && status !== 'approved' && status !== 'rejected';
+
   return (
     <div className="relative w-full">
       <input ref={inputRef} id={id} type="file" accept={accept} className="hidden" onChange={onChange} />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={`w-full flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl border-2 transition-all ${ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/40'
-          }`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {ok ? <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" /> : <Upload size={18} className="text-blue-400 flex-shrink-0" />}
-          <span className={`text-xs font-medium truncate ${ok ? 'text-emerald-700' : 'text-gray-500'}`}>
-            {file ? file.name : hasExisting ? `${label} tersimpan ✓` : label}
-          </span>
+      <div className={`w-full rounded-xl border-2 transition-all p-3.5 bg-white ${
+        status === 'rejected'
+          ? 'border-rose-300 hover:border-rose-400 bg-rose-50/10'
+          : status === 'approved'
+            ? 'border-emerald-400 bg-emerald-50/20'
+            : isPending
+              ? 'border-amber-300 hover:border-amber-400 bg-amber-50/10'
+              : 'border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/40'
+      }`}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {status === 'approved' ? (
+              <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+            ) : status === 'rejected' ? (
+              <X size={18} className="text-rose-500 flex-shrink-0" />
+            ) : isPending ? (
+              <Clock size={18} className="text-amber-500 flex-shrink-0 animate-pulse" />
+            ) : (
+              <Upload size={18} className="text-blue-400 flex-shrink-0" />
+            )}
+            <span className={`text-xs font-bold truncate ${
+              status === 'approved'
+                ? 'text-emerald-700'
+                : status === 'rejected'
+                  ? 'text-rose-700 font-extrabold'
+                  : isPending
+                    ? 'text-amber-700'
+                    : 'text-gray-600'
+            }`}>
+              {label}
+            </span>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className={`text-[10px] font-black px-2.5 py-1 rounded-lg border transition-all ${
+              status === 'approved'
+                ? 'text-emerald-600 bg-emerald-50 border-emerald-200 pointer-events-none opacity-60'
+                : status === 'rejected'
+                  ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                  : isPending
+                    ? 'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                    : 'text-blue-500 bg-blue-50 border-blue-100 hover:bg-blue-100'
+            }`}
+          >
+            {file ? 'Ganti' : status === 'rejected' ? 'Upload Ulang' : hasExisting ? 'Ganti' : 'Pilih'}
+          </button>
         </div>
-        <span className={`text-[10px] font-bold flex-shrink-0 ${ok ? 'text-emerald-600' : 'text-blue-400'}`}>{ok ? 'Ganti' : 'Pilih'}</span>
-      </button>
-      {hint && <p className="text-[10px] text-gray-400 mt-1">{hint}</p>}
+
+        {/* Existing file / status text info */}
+        {file ? (
+          <p className="text-[10px] text-amber-600 font-semibold truncate">File terpilih: {file.name} (belum disimpan)</p>
+        ) : status === 'approved' ? (
+          <p className="text-[10px] text-emerald-600 font-semibold">Telah disetujui & diverifikasi oleh Admin.</p>
+        ) : status === 'rejected' ? (
+          <div className="space-y-1">
+            <p className="text-[10px] text-rose-600 font-black">DITOLAK ADMIN ✗</p>
+            {feedback && <p className="text-[10px] text-rose-500 font-medium bg-rose-50/80 p-2 rounded-lg border border-rose-100">{feedback}</p>}
+          </div>
+        ) : hasExisting ? (
+          <p className="text-[10px] text-amber-600 font-semibold">Berkas tersimpan & menunggu verifikasi Admin.</p>
+        ) : (
+          hint && <p className="text-[10px] text-gray-400">{hint}</p>
+        )}
+      </div>
     </div>
   );
 };
 
-const BizCameraButton = ({ id, label, preview, file, hasExisting, onChange }) => {
+const BizCameraButton = ({ id, label, preview, file, hasExisting, status, feedback, onChange }) => {
   const inputRef = useRef(null);
   const ok = preview || file || hasExisting;
+  const isPending = ok && status !== 'approved' && status !== 'rejected';
+
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <input ref={inputRef} id={id} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={`w-full min-h-[112px] rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all px-3 py-3 ${ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400'
-          }`}
-      >
-        {preview ? (
-          <img src={preview} alt="" className="max-h-24 w-full object-contain rounded-lg" />
-        ) : hasExisting ? (
-          <>
-            <CheckCircle2 size={28} className="text-emerald-500" />
-            <span className="text-[10px] text-emerald-600 font-bold text-center">{label} tersimpan ✓</span>
-          </>
-        ) : (
-          <>
-            <Camera size={22} className="text-blue-400" />
-            <span className="text-[10px] text-gray-500 text-center">{label}</span>
-          </>
-        )}
-      </button>
+      <div className={`w-full rounded-xl border-2 transition-all p-3.5 bg-white ${
+        status === 'rejected'
+          ? 'border-rose-300 bg-rose-50/10'
+          : status === 'approved'
+            ? 'border-emerald-400 bg-emerald-50/20'
+            : isPending
+              ? 'border-amber-300 bg-amber-50/10'
+              : 'border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/40'
+      }`}>
+        <div className="flex flex-col items-center justify-center text-center space-y-3.5">
+          {preview ? (
+            <img src={preview} alt="" className="max-h-24 w-full object-contain rounded-lg shadow-sm animate-pulse" />
+          ) : status === 'approved' ? (
+            <>
+              <CheckCircle2 size={24} className="text-emerald-500" />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-emerald-700 block">{label}</span>
+                <span className="text-[9px] font-semibold text-emerald-600 block">Telah diverifikasi Admin ✓</span>
+              </div>
+            </>
+          ) : status === 'rejected' ? (
+            <>
+              <X size={24} className="text-rose-500" />
+              <div className="space-y-1 w-full">
+                <span className="text-xs font-bold text-rose-700 block">{label}</span>
+                <span className="text-[9px] font-black text-rose-600 block uppercase">Ditolak Admin ✗</span>
+                {feedback && <p className="text-[10px] text-rose-500 font-medium bg-rose-50/80 p-2 rounded-lg border border-rose-100">{feedback}</p>}
+              </div>
+            </>
+          ) : hasExisting ? (
+            <>
+              <Clock size={24} className="text-amber-500 animate-pulse" />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-amber-700 block">{label}</span>
+                <span className="text-[9px] font-semibold text-amber-600 block">Menunggu verifikasi Admin...</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <Camera size={24} className="text-blue-400" />
+              <span className="text-xs font-medium text-gray-500">{label}</span>
+            </>
+          )}
+
+          {status !== 'approved' && (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className={`text-[10px] font-black px-4 py-1.5 rounded-lg border transition-all ${
+                status === 'rejected'
+                  ? 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                  : isPending
+                    ? 'text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                    : 'text-blue-500 bg-blue-50 border-blue-100 hover:bg-blue-100'
+              }`}
+            >
+              {file || preview ? 'Ambil Ulang' : status === 'rejected' ? 'Ambil Foto Ulang' : hasExisting ? 'Ganti Foto' : 'Ambil Foto'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -316,21 +412,21 @@ const DokumenLegalitas = ({ onBusinessUpdated }) => {
 
       <div className="space-y-3">
         <DocRow title="Berkas Identitas (Wajib)" desc="Disimpan untuk verifikasi — tidak mengubah hitungan skor otomatis" defaultOpen>
-          <BizFileButton id="ktp" label="Upload KTP" hint="PDF/JPG/PNG maks. 5MB" file={ktpFile} hasExisting={bp?.has_ktp} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKtpFile(e.target.files?.[0])} />
-          <BizFileButton id="kk" label="Upload Kartu Keluarga" hint="PDF/JPG/PNG maks. 5MB" file={kkFile} hasExisting={bp?.has_kk} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKkFile(e.target.files?.[0])} />
+          <BizFileButton id="ktp" label="Upload KTP" hint="PDF/JPG/PNG maks. 5MB" file={ktpFile} hasExisting={bp?.has_ktp} status={bp?.document_statuses?.['ktp_path']} feedback={bp?.document_feedbacks?.['ktp_path']} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKtpFile(e.target.files?.[0])} />
+          <BizFileButton id="kk" label="Upload Kartu Keluarga" hint="PDF/JPG/PNG maks. 5MB" file={kkFile} hasExisting={bp?.has_kk} status={bp?.document_statuses?.['kk_path']} feedback={bp?.document_feedbacks?.['kk_path']} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKkFile(e.target.files?.[0])} />
           <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <BizCameraButton id="selfie" label="Selfie dengan KTP" preview={selfiePreview} file={selfieFile} hasExisting={bp?.has_selfie_ktp} onChange={handleSelfie} />
-            <BizFileButton id="ttd" label="Tanda Tangan Digital (PNG)" hint="PNG transparan maks. 2MB" file={ttdFile} hasExisting={bp?.has_ttd} accept=".png" onChange={(e) => setTtdFile(e.target.files?.[0])} />
+            <BizCameraButton id="selfie" label="Selfie dengan KTP" preview={selfiePreview} file={selfieFile} hasExisting={bp?.has_selfie_ktp} status={bp?.document_statuses?.['selfie_ktp_path']} feedback={bp?.document_feedbacks?.['selfie_ktp_path']} onChange={handleSelfie} />
+            <BizFileButton id="ttd" label="Tanda Tangan Digital (PNG)" hint="PNG transparan maks. 2MB" file={ttdFile} hasExisting={bp?.has_ttd} status={bp?.document_statuses?.['ttd_path']} feedback={bp?.document_feedbacks?.['ttd_path']} accept=".png" onChange={(e) => setTtdFile(e.target.files?.[0])} />
           </div>
         </DocRow>
         <DocRow title="Berkas Izin Usaha (mempengaruhi skor Legalitas)" desc="NIB dan NPWP — sama dengan data yang dipakai bank">
-          <BizFileButton id="nib" label="Upload NIB" hint="PDF/JPG maks. 5MB" file={nibFile} hasExisting={bp?.has_nib} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setNibFile(e.target.files?.[0])} />
-          <BizFileButton id="npwp" label="Upload NPWP" hint="PDF/JPG maks. 5MB" file={npwpFile} hasExisting={bp?.has_npwp} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setNpwpFile(e.target.files?.[0])} />
+          <BizFileButton id="nib" label="Upload NIB" hint="PDF/JPG maks. 5MB" file={nibFile} hasExisting={bp?.has_nib} status={bp?.document_statuses?.['nib_path']} feedback={bp?.document_feedbacks?.['nib_path']} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setNibFile(e.target.files?.[0])} />
+          <BizFileButton id="npwp" label="Upload NPWP" hint="PDF/JPG maks. 5MB" file={npwpFile} hasExisting={bp?.has_npwp} status={bp?.document_statuses?.['npwp_path']} feedback={bp?.document_feedbacks?.['npwp_path']} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setNpwpFile(e.target.files?.[0])} />
         </DocRow>
         <DocRow title="Bukti Domisili & Operasional (mempengaruhi skor Keberlanjutan)" desc="Membuktikan usaha berjalan di lokasi nyata">
           <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <BizCameraButton id="foto_usaha" label="Foto tempat usaha" preview={fotoPreview} file={fotoFile} hasExisting={bp?.has_foto_usaha} onChange={handleFoto} />
-            <BizFileButton id="kontrak" label="Kontrak sewa / bukti kepemilikan" hint="PDF/JPG maks. 5MB" file={kontrakFile} hasExisting={bp?.has_kontrak} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKontrakFile(e.target.files?.[0])} />
+            <BizCameraButton id="foto_usaha" label="Foto tempat usaha" preview={fotoPreview} file={fotoFile} hasExisting={bp?.has_foto_usaha} status={bp?.document_statuses?.['foto_usaha_path']} feedback={bp?.document_feedbacks?.['foto_usaha_path']} onChange={handleFoto} />
+            <BizFileButton id="kontrak" label="Kontrak sewa / bukti kepemilikan" hint="PDF/JPG maks. 5MB" file={kontrakFile} hasExisting={bp?.has_kontrak} status={bp?.document_statuses?.['kontrak_path']} feedback={bp?.document_feedbacks?.['kontrak_path']} accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setKontrakFile(e.target.files?.[0])} />
           </div>
         </DocRow>
       </div>
@@ -365,12 +461,14 @@ const ToggleSwitch = ({ checked, onChange, id }) => (
   </button>
 );
 
-const PwInput = ({ label, name, value, onChange, placeholder }) => {
+const PwInput = ({ label, name, value, onChange, placeholder, error }) => {
   const [show, setShow] = useState(false);
   return (
     <div className="space-y-1.5">
       <label className="text-sm font-medium text-gray-600 block">{label}</label>
-      <div className="flex items-center border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-100 bg-gray-50">
+      <div className={`flex items-center border rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-100 bg-gray-50 transition-all ${
+        error ? 'border-red-400 focus-within:ring-red-100' : 'border-gray-200'
+      }`}>
         <input
           name={name} type={show ? 'text' : 'password'} value={value}
           onChange={onChange} placeholder={placeholder}
@@ -380,6 +478,12 @@ const PwInput = ({ label, name, value, onChange, placeholder }) => {
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
+      {error && (
+        <p className="text-[10px] text-red-500 font-extrabold flex items-center gap-1 mt-1 animate-pulse">
+          <AlertTriangle size={11} className="text-red-500 flex-shrink-0" />
+          <span>{error}</span>
+        </p>
+      )}
     </div>
   );
 };
@@ -490,27 +594,74 @@ const Pengaturan = () => {
   // ── Ganti Password ──────────────────────────────────────────────────────────
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', new_password_confirmation: '' });
   const [pwSaving, setPwSaving] = useState(false);
+  const [pwErrors, setPwErrors] = useState({ current_password: '', new_password: '', new_password_confirmation: '' });
 
-  const handlePwChange = e => setPwForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handlePwChange = e => {
+    const { name, value } = e.target;
+    setPwForm(f => ({ ...f, [name]: value }));
+    setPwErrors(errs => ({ ...errs, [name]: '' }));
+  };
+
   const handlePwSave = async () => {
     const { current_password, new_password, new_password_confirmation } = pwForm;
-    if (!current_password || !new_password || !new_password_confirmation) { toast.error('Semua field wajib diisi.'); return; }
-    
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-    if (!passwordRegex.test(new_password)) {
-      toast.error('Password baru min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!');
+    const nextErrors = { current_password: '', new_password: '', new_password_confirmation: '' };
+    let hasError = false;
+
+    if (!current_password) {
+      nextErrors.current_password = 'Password saat ini wajib diisi.';
+      hasError = true;
+    }
+    if (!new_password) {
+      nextErrors.new_password = 'Password baru wajib diisi.';
+      hasError = true;
+    }
+    if (!new_password_confirmation) {
+      nextErrors.new_password_confirmation = 'Konfirmasi password baru wajib diisi.';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setPwErrors(nextErrors);
       return;
     }
     
-    if (new_password !== new_password_confirmation) { toast.error('Konfirmasi password tidak cocok.'); return; }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(new_password)) {
+      setPwErrors({
+        current_password: '',
+        new_password: 'Password baru min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!',
+        new_password_confirmation: ''
+      });
+      return;
+    }
+    
+    if (new_password !== new_password_confirmation) {
+      setPwErrors({
+        current_password: '',
+        new_password: '',
+        new_password_confirmation: 'Konfirmasi password tidak cocok.'
+      });
+      return;
+    }
+
     setPwSaving(true);
     try {
       await changePassword(current_password, new_password, new_password_confirmation);
       toast.success('Password berhasil diubah! Silakan login ulang.');
       setPwForm({ current_password: '', new_password: '', new_password_confirmation: '' });
+      setPwErrors({ current_password: '', new_password: '', new_password_confirmation: '' });
       setTimeout(() => { localStorage.clear(); navigate('/login'); }, 1800);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Gagal mengubah password.');
+      const errorMsg = err.response?.data?.message || 'Gagal mengubah password.';
+      if (errorMsg.toLowerCase().includes('current') || errorMsg.toLowerCase().includes('lama') || errorMsg.toLowerCase().includes('saat ini')) {
+        setPwErrors({
+          current_password: errorMsg,
+          new_password: '',
+          new_password_confirmation: ''
+        });
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setPwSaving(false);
     }
@@ -621,9 +772,9 @@ const Pengaturan = () => {
           {/* Ganti Password */}
           <SettingRow icon={Lock} iconBg="bg-[#4A90D9]" label="Ganti Password" desc="Ubah password akun kamu secara berkala">
             <div className="space-y-4 mt-3">
-              <PwInput label="Password Saat Ini" name="current_password" value={pwForm.current_password} onChange={handlePwChange} placeholder="Masukkan password lama" />
-              <PwInput label="Password Baru" name="new_password" value={pwForm.new_password} onChange={handlePwChange} placeholder="Min. 8 karakter (wajib huruf besar, kecil, angka, simbol)" />
-              <PwInput label="Konfirmasi Password Baru" name="new_password_confirmation" value={pwForm.new_password_confirmation} onChange={handlePwChange} placeholder="Ulangi password baru" />
+              <PwInput label="Password Saat Ini" name="current_password" value={pwForm.current_password} onChange={handlePwChange} placeholder="Masukkan password lama" error={pwErrors.current_password} />
+              <PwInput label="Password Baru" name="new_password" value={pwForm.new_password} onChange={handlePwChange} placeholder="Min. 8 karakter (wajib huruf besar, kecil, angka, simbol)" error={pwErrors.new_password} />
+              <PwInput label="Konfirmasi Password Baru" name="new_password_confirmation" value={pwForm.new_password_confirmation} onChange={handlePwChange} placeholder="Ulangi password baru" error={pwErrors.new_password_confirmation} />
               <div className="pt-1 flex justify-between items-center">
                 <p className="text-xs text-gray-400">Min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol. Setelah ganti, kamu harus login ulang.</p>
                 <button

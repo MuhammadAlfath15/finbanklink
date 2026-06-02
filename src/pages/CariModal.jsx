@@ -34,7 +34,7 @@ const getBankAccentStyle = (name = '') => {
 };
 
 // ── Detail Modal ─────────────────────────────────────────────────────────────
-const DetailModal = ({ bank, onClose, onAjukan }) => {
+const DetailModal = ({ bank, onClose, onAjukan, pendingDocsCount }) => {
   const { cardBg, accent, textMain } = getBankAccentStyle(bank.nama_bank);
   const plafonMin = bank.plafon_min ?? 1_000_000;
   const plafonMax = bank.plafon_max ?? 50_000_000;
@@ -121,10 +121,14 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
           <button onClick={onClose} className="py-4 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border-r border-gray-200 dark:border-gray-700 transition-colors">Kembali</button>
           <button
             onClick={onAjukan}
-            disabled={bank.skor_kecocokan < 60}
-            className={`py-4 text-sm font-bold transition-colors ${bank.skor_kecocokan < 60 ? 'text-gray-400 cursor-not-allowed bg-gray-50' : 'text-blue-600 hover:text-blue-800'}`}
+            disabled={bank.skor_kecocokan < 60 || pendingDocsCount > 0}
+            className={`py-4 text-sm font-bold transition-colors ${
+              bank.skor_kecocokan < 60 || pendingDocsCount > 0
+                ? 'text-gray-400 cursor-not-allowed bg-gray-50 dark:bg-gray-800'
+                : 'text-blue-600 hover:text-blue-800'
+            }`}
           >
-            {bank.skor_kecocokan < 60 ? 'Skor Kurang' : 'Ajukan Sekarang'}
+            {pendingDocsCount > 0 ? 'Menunggu Audit Berkas' : bank.skor_kecocokan < 60 ? 'Skor Kurang' : 'Ajukan Sekarang'}
           </button>
         </div>
       </div>
@@ -132,7 +136,7 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
   );
 };
 
-const BankCard = ({ bank, setActiveBank, goAjukan }) => {
+const BankCard = ({ bank, setActiveBank, goAjukan, pendingDocsCount }) => {
   const accentGradients = {
     'Bank BCA': 'from-[#1E56A0] via-[#1E56A0]/60 to-transparent',
     'Bank Mandiri': 'from-[#F9F871] via-[#F9F871]/60 to-transparent',
@@ -185,17 +189,22 @@ const BankCard = ({ bank, setActiveBank, goAjukan }) => {
       <div className="relative z-10 flex w-full divide-x-[1.5px] divide-[#1A1A1A]/10 dark:divide-white/10 bg-white/10 dark:bg-black/10 mt-auto">
         <button onClick={() => setActiveBank(bank)} className="flex-1 py-4 text-[13px] font-bold text-[#1A1A1A] dark:text-gray-200 hover:bg-white/40 dark:hover:bg-white/10 transition-colors uppercase tracking-wide">Detail Produk</button>
         <button
-          onClick={() => bank.skor_kecocokan >= 60 && goAjukan(bank)}
-          className={`flex-1 py-4 text-[13px] font-bold transition-colors uppercase tracking-wide ${bank.skor_kecocokan < 60 ? 'text-gray-400 dark:text-gray-600 bg-gray-100/50 dark:bg-gray-700/30 cursor-not-allowed' : 'text-[#1A1A1A] dark:text-gray-200 hover:bg-white/40 dark:hover:bg-white/10'}`}
+          onClick={() => bank.skor_kecocokan >= 60 && pendingDocsCount === 0 && goAjukan(bank)}
+          disabled={bank.skor_kecocokan < 60 || pendingDocsCount > 0}
+          className={`flex-1 py-4 text-[13px] font-bold transition-colors uppercase tracking-wide ${
+            bank.skor_kecocokan < 60 || pendingDocsCount > 0
+              ? 'text-gray-400 dark:text-gray-600 bg-gray-100/50 dark:bg-gray-700/30 cursor-not-allowed'
+              : 'text-[#1A1A1A] dark:text-gray-200 hover:bg-white/40 dark:hover:bg-white/10'
+          }`}
         >
-          {bank.skor_kecocokan < 60 ? 'Skor Rendah' : 'Ajukan Modal'}
+          {pendingDocsCount > 0 ? 'Menunggu Audit' : bank.skor_kecocokan < 60 ? 'Skor Rendah' : 'Ajukan Modal'}
         </button>
       </div>
     </div>
   );
 };
 
-const BankCarousel = ({ title, banks, setActiveBank, goAjukan }) => {
+const BankCarousel = ({ title, banks, setActiveBank, goAjukan, pendingDocsCount }) => {
   const scrollRef = useRef(null);
 
   const scroll = (direction) => {
@@ -247,7 +256,7 @@ const BankCarousel = ({ title, banks, setActiveBank, goAjukan }) => {
           className="flex overflow-x-auto gap-6 pb-6 px-2 -mx-2 hide-scrollbar snap-x snap-mandatory scroll-smooth"
         >
           {banks.map(bank => (
-            <BankCard key={bank.id} bank={bank} setActiveBank={setActiveBank} goAjukan={goAjukan} />
+            <BankCard key={bank.id} bank={bank} setActiveBank={setActiveBank} goAjukan={goAjukan} pendingDocsCount={pendingDocsCount} />
           ))}
         </div>
       </div>
@@ -260,6 +269,7 @@ const CariModal = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
   const [activeBank, setActiveBank] = useState(null);
+  const [bp, setBp] = useState(null);
   const navigate = useNavigate();
 
   const goAjukan = (bank) => navigate('/ajukan-pinjaman', { state: { bank } });
@@ -272,6 +282,7 @@ const CariModal = () => {
           getBusinessProfile().catch(() => ({ skor_total: 0 }))
         ]);
 
+        setBp(profileData);
         const userScore = profileData.skor_total || 0;
 
         // Kalkulasi skor kecocokan berdasarkan skor kesehatan bisnis vs standar bank
@@ -300,9 +311,27 @@ const CariModal = () => {
     fetchData();
   }, []);
 
+  // Check if there are any documents pending audit
+  const getPendingCount = (profile) => {
+    if (!profile) return 0;
+    const docs = ['nib_path', 'npwp_path', 'rekening_path', 'foto_usaha_path', 'kontrak_path', 'bukti_pelunasan_path'];
+    let pendingCount = 0;
+    docs.forEach(doc => {
+      const hasFileKey = 'has_' + doc.replace('_path', '');
+      const hasFile = profile[hasFileKey] || profile[doc];
+      const status = profile.document_statuses?.[doc] || 'pending';
+      if (hasFile && status === 'pending') {
+        pendingCount++;
+      }
+    });
+    return pendingCount;
+  };
+
+  const pendingDocsCount = getPendingCount(bp);
+
   return (
     <>
-      {activeBank && <DetailModal bank={activeBank} onClose={() => setActiveBank(null)} onAjukan={() => goAjukan(activeBank)} />}
+      {activeBank && <DetailModal bank={activeBank} onClose={() => setActiveBank(null)} onAjukan={() => goAjukan(activeBank)} pendingDocsCount={pendingDocsCount} />}
       <div className="space-y-6 p-4 bg-gray-50 dark:bg-gray-900 min-h-screen">
 
         {/* --- KOTAK 1: SECTION HEADER --- */}
@@ -421,94 +450,115 @@ const CariModal = () => {
           )}
         </div>
 
+        {/* --- WARNING BANNER UNDER SECTION 1 --- */}
+        {pendingDocsCount > 0 && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-300/60 rounded-3xl p-4 flex items-center justify-between gap-4 shadow-sm backdrop-blur-md animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-200">
+                <Clock size={20} className="animate-spin text-amber-500" style={{ animationDuration: '4s' }} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-amber-800 leading-snug">Berkas Sedang Ditinjau Admin</p>
+                <p className="text-xs text-amber-700/80 mt-0.5 font-semibold">Ada {pendingDocsCount} dokumen yang saat ini dalam proses audit. Fitur pengajuan modal dikunci sementara hingga disetujui Admin.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/profile?panel=dokumen')}
+              className="flex-shrink-0 px-4.5 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-amber-600/10 cursor-pointer"
+            >
+              Lihat Status Berkas
+            </button>
+          </div>
+        )}
+
         {/* --- KOTAK 2: SECTION REKOMENDASI KARTU --- */}
         <div className="bg-white dark:bg-gray-800 rounded-[40px] p-8 mt-8">
-          {(() => {
-            const filteredBanks = banks.filter(bank => {
-              // 1. Pencarian Kata Kunci
-              const query = searchTerm.toLowerCase();
-              const matchesSearch = bank.nama_bank.toLowerCase().includes(query) ||
-                                    bank.nama_produk.toLowerCase().includes(query) ||
-                                    (bank.deskripsi || '').toLowerCase().includes(query);
-              
-              if (!matchesSearch) return false;
+            {(() => {
+              const filteredBanks = banks.filter(bank => {
+                // 1. Pencarian Kata Kunci
+                const query = searchTerm.toLowerCase();
+                const matchesSearch = bank.nama_bank.toLowerCase().includes(query) ||
+                                      bank.nama_produk.toLowerCase().includes(query) ||
+                                      (bank.deskripsi || '').toLowerCase().includes(query);
+                
+                if (!matchesSearch) return false;
 
-              // 2. Penyaringan Kategori Filter
-              if (activeFilter === 'mikro') {
-                return bank.plafon_max <= 50000000;
-              }
-              if (activeFilter === 'bunga') {
-                return bank.bunga_persen <= 0.6;
-              }
-              if (activeFilter === 'cepat') {
-                const desc = (bank.deskripsi || '').toLowerCase();
-                const prod = (bank.nama_produk || '').toLowerCase();
-                return desc.includes('cepat') || prod.includes('super mikro') || prod.includes('kta');
-              }
-              if (activeFilter === 'jaminan') {
-                const desc = (bank.deskripsi || '').toLowerCase();
-                const prod = (bank.nama_produk || '').toLowerCase();
-                return desc.includes('tanpa jaminan') || desc.includes('tanpa agunan') || prod.includes('kta');
-              }
+                // 2. Penyaringan Kategori Filter
+                if (activeFilter === 'mikro') {
+                  return bank.plafon_max <= 50000000;
+                }
+                if (activeFilter === 'bunga') {
+                  return bank.bunga_persen <= 0.6;
+                }
+                if (activeFilter === 'cepat') {
+                  const desc = (bank.deskripsi || '').toLowerCase();
+                  const prod = (bank.nama_produk || '').toLowerCase();
+                  return desc.includes('cepat') || prod.includes('super mikro') || prod.includes('kta');
+                }
+                if (activeFilter === 'jaminan') {
+                  const desc = (bank.deskripsi || '').toLowerCase();
+                  const prod = (bank.nama_produk || '').toLowerCase();
+                  return desc.includes('tanpa jaminan') || desc.includes('tanpa agunan') || prod.includes('kta');
+                }
 
-              return true;
-            });
-
-            const banksByCategory = filteredBanks.reduce((acc, bank) => {
-              const key = (bank.category_name || bank.category || 'terdaftar').toLowerCase();
-              if (!acc[key]) {
-                acc[key] = {
-                  rows: [],
-                  sortOrder: Number(bank.category_sort_order ?? 999),
-                  slug: (bank.category_slug || '').toLowerCase(),
-                };
-              }
-              acc[key].rows.push(bank);
-              acc[key].sortOrder = Math.min(acc[key].sortOrder, Number(bank.category_sort_order ?? 999));
-              return acc;
-            }, {});
-
-            const sortedCategoryEntries = Object.entries(banksByCategory)
-              .map(([category, data]) => ({
-                category,
-                rows: [...data.rows].sort((a, b) => b.skor_kecocokan - a.skor_kecocokan),
-                sortOrder: data.sortOrder,
-                slug: data.slug,
-              }))
-              .sort((a, b) => {
-                const sortOrderDiff = a.sortOrder - b.sortOrder;
-                if (sortOrderDiff !== 0) return sortOrderDiff;
-                return a.category.localeCompare(b.category);
+                return true;
               });
 
-            if (filteredBanks.length === 0) {
-              return (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                    <Search className="w-8 h-8 text-gray-400" />
+              const banksByCategory = filteredBanks.reduce((acc, bank) => {
+                const key = (bank.category_name || bank.category || 'terdaftar').toLowerCase();
+                if (!acc[key]) {
+                  acc[key] = {
+                    rows: [],
+                    sortOrder: Number(bank.category_sort_order ?? 999),
+                    slug: (bank.category_slug || '').toLowerCase(),
+                  };
+                }
+                acc[key].rows.push(bank);
+                acc[key].sortOrder = Math.min(acc[key].sortOrder, Number(bank.category_sort_order ?? 999));
+                return acc;
+              }, {});
+
+              const sortedCategoryEntries = Object.entries(banksByCategory)
+                .map(([category, data]) => ({
+                  category,
+                  rows: [...data.rows].sort((a, b) => b.skor_kecocokan - a.skor_kecocokan),
+                  sortOrder: data.sortOrder,
+                  slug: data.slug,
+                }))
+                .sort((a, b) => {
+                  const sortOrderDiff = a.sortOrder - b.sortOrder;
+                  if (sortOrderDiff !== 0) return sortOrderDiff;
+                  return a.category.localeCompare(b.category);
+                });
+
+              if (filteredBanks.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Search className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#1A1A1A] dark:text-white mb-2">Bank tidak ditemukan</h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">Coba gunakan kata kunci lain untuk mencari mitra bank.</p>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1A1A1A] dark:text-white mb-2">Bank tidak ditemukan</h3>
-                  <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">Coba gunakan kata kunci lain untuk mencari mitra bank.</p>
+                );
+              }
+
+              return (
+                <div className="space-y-12">
+                  {sortedCategoryEntries.map(({ category, rows }) => (
+                    <BankCarousel
+                      key={category}
+                      title={formatCategoryTitle(category)}
+                      banks={rows}
+                      setActiveBank={setActiveBank}
+                      goAjukan={goAjukan}
+                      pendingDocsCount={pendingDocsCount}
+                    />
+                  ))}
                 </div>
               );
-            }
-
-            return (
-              <div className="space-y-12">
-                {sortedCategoryEntries.map(({ category, rows }) => (
-                  <BankCarousel
-                    key={category}
-                    title={formatCategoryTitle(category)}
-                    banks={rows}
-                    setActiveBank={setActiveBank}
-                    goAjukan={goAjukan}
-                  />
-                ))}
-              </div>
-            );
-          })()}
+            })()}
         </div>
-
       </div>
     </>
   );

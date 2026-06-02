@@ -692,8 +692,45 @@ export default function Dashboard() {
   const usableW = W - padX * 2;
   const usableH = H - padY * 2;
 
+  // Check if there are any documents pending audit
+  const getPendingCount = (bp) => {
+    if (!bp) return 0;
+    const docs = ['nib_path', 'npwp_path', 'rekening_path', 'foto_usaha_path', 'kontrak_path', 'bukti_pelunasan_path'];
+    let pendingCount = 0;
+    docs.forEach(doc => {
+      const hasFileKey = 'has_' + doc.replace('_path', '');
+      const hasFile = bp[hasFileKey] || bp[doc];
+      const status = bp.document_statuses?.[doc] || 'pending';
+      if (hasFile && status === 'pending') {
+        pendingCount++;
+      }
+    });
+    return pendingCount;
+  };
+
+  const pendingDocsCount = getPendingCount(businessProfile);
+
   return (
     <>
+      {pendingDocsCount > 0 && (
+        <div className="mb-5 bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-300/60 rounded-3xl p-4 flex items-center justify-between gap-4 shadow-sm backdrop-blur-md animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-200">
+              <Clock size={20} className="animate-spin text-amber-500" style={{ animationDuration: '4s' }} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-amber-800 leading-snug">Berkas Sedang Ditinjau Admin</p>
+              <p className="text-xs text-amber-700/80 mt-0.5 font-semibold">Ada {pendingDocsCount} dokumen yang saat ini dalam proses audit. Skor kesehatan bisnis akan diperbarui secara otomatis setelah disetujui Admin.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/profile?panel=dokumen')}
+            className="flex-shrink-0 px-4.5 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-amber-600/10 cursor-pointer"
+          >
+            Lihat Status Berkas
+          </button>
+        </div>
+      )}
       <div className="flex gap-5 font-sans min-h-0 h-[460px]">
 
         {/* ── Kolom Kiri (Kartu Info) ── */}
@@ -1093,10 +1130,13 @@ export default function Dashboard() {
                   <p className="text-white/90 text-xs md:text-sm leading-relaxed max-w-sm mb-6 font-medium drop-shadow-sm hidden md:block">
                     {ad.desc}
                   </p>
-                  <button className="px-6 py-2.5 bg-white text-gray-900 text-[11px] md:text-xs font-bold rounded-full hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all shadow-[0_8px_20px_-6px_rgba(255,255,255,0.4)] flex items-center gap-2">
-                    {ad.cta}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5 stroke-2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                  </button>
+                  <div className="inline-flex items-center gap-1.5 text-white/90 text-[10px] md:text-xs font-black uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] select-none">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.8)]"></span>
+                    </span>
+                    <span>{ad.cta || 'Penawaran'}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1273,11 +1313,11 @@ export default function Dashboard() {
             {articles.map((tip, i) => (
               <div
                 key={i}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
               >
                 {/* Foto */}
                 <div className="h-44 overflow-hidden">
-                  <img src={tip.image_url} alt={tip.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                  <img src={tip.image_url} alt={tip.title} className="w-full h-full object-cover" />
                 </div>
                 {/* Teks */}
                 <div className="p-4">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, Target, AlertTriangle, TrendingUp,
-  Info, ChevronRight, CheckCircle2, Loader2, RefreshCw
+  Info, ChevronRight, CheckCircle2, Loader2, RefreshCw, Clock
 } from 'lucide-react';
 import { getBusinessProfile } from '../services/api';
 
@@ -21,25 +21,77 @@ const METRIC_KEYS = [
 
 const ANALYSIS = [
   {
-    getAnalysis: (bp) => bp.skor_profitabilitas >= 70
-      ? 'Margin keuntungan stabil dan rekening koran sudah terlampir.'
-      : bp.has_rekening
-        ? 'Rekening koran ada, tapi omzet perlu ditingkatkan.'
-        : 'Rekening koran belum diunggah — profitabilitas sulit dinilai bank.',
-    getSaran: (bp) => bp.skor_profitabilitas >= 70
-      ? 'Pertahankan konsistensi omzet dan coba audit pengeluaran variabel.'
-      : 'Unggah rekening koran 3 bulan dan perbarui data omzet bulan ini.',
+    getAnalysis: (bp) => {
+      const status = bp.document_statuses?.rekening_path || 'pending';
+      if (!bp.has_rekening) {
+        return 'Rekening koran belum diunggah — profitabilitas sulit dinilai bank.';
+      }
+      if (status === 'pending') {
+        return 'Rekening koran telah diunggah dan sedang dalam proses verifikasi (audit) oleh Admin.';
+      }
+      if (status === 'rejected') {
+        return `Rekening koran ditolak oleh Admin. Catatan: ${bp.document_feedbacks?.rekening_path || 'Dokumen tidak sesuai.'}`;
+      }
+      return 'Margin keuntungan stabil dan rekening koran sudah terverifikasi oleh Admin.';
+    },
+    getSaran: (bp) => {
+      const status = bp.document_statuses?.rekening_path || 'pending';
+      if (!bp.has_rekening) {
+        return 'Unggah rekening koran 3 bulan di menu Profil → Dokumen Keuangan.';
+      }
+      if (status === 'pending') {
+        return 'Tunggu verifikasi Admin selesai agar nilai profitabilitas ter-update.';
+      }
+      if (status === 'rejected') {
+        return 'Unggah ulang dokumen rekening koran yang valid sesuai saran Admin.';
+      }
+      return 'Pertahankan konsistensi omzet dan coba audit pengeluaran variabel.';
+    },
   },
   {
     getAnalysis: (bp) => {
-      if (bp.has_nib && bp.has_npwp) return 'Dokumen legalitas lengkap (NIB & NPWP sudah ada).';
-      if (bp.has_nib) return 'NIB sudah ada, tapi NPWP belum diunggah.';
-      if (bp.has_npwp) return 'NPWP sudah ada, tapi NIB belum diunggah.';
-      return 'NIB dan NPWP belum diunggah — legalitas sangat rendah.';
+      const getStatusLabel = (path, name) => {
+        const has = bp[`has_${path}`];
+        if (!has) return `${name} belum diunggah`;
+        const stat = bp.document_statuses?.[`${path}_path`] || 'pending';
+        if (stat === 'pending') return `${name} (Menunggu Audit)`;
+        if (stat === 'rejected') return `${name} (Ditolak)`;
+        return `${name} (Disetujui)`;
+      };
+
+      const nibLabel = getStatusLabel('nib', 'NIB');
+      const npwpLabel = getStatusLabel('npwp', 'NPWP');
+
+      return `Status dokumen: ${nibLabel} dan ${npwpLabel}.`;
     },
     getSaran: (bp) => {
-      if (bp.has_nib && bp.has_npwp) return 'Pastikan dokumen masih berlaku dan perbarui jika expired.';
-      return 'Segera unggah NIB dan NPWP di Profil → Dokumen Legalitas.';
+      const hasNib = bp.has_nib;
+      const hasNpwp = bp.has_npwp;
+      const nibStat = bp.document_statuses?.nib_path || 'pending';
+      const npwpStat = bp.document_statuses?.npwp_path || 'pending';
+
+      const pendingList = [];
+      const missingList = [];
+      const rejectedList = [];
+
+      if (!hasNib) missingList.push('NIB');
+      else if (nibStat === 'pending') pendingList.push('NIB');
+      else if (nibStat === 'rejected') rejectedList.push('NIB');
+
+      if (!hasNpwp) missingList.push('NPWP');
+      else if (npwpStat === 'pending') pendingList.push('NPWP');
+      else if (npwpStat === 'rejected') rejectedList.push('NPWP');
+
+      if (missingList.length > 0) {
+        return `Segera unggah dokumen ${missingList.join(' & ')} di Profil → Dokumen Legalitas.`;
+      }
+      if (rejectedList.length > 0) {
+        return `Unggah ulang dokumen ${rejectedList.join(' & ')} yang ditolak sesuai catatan Admin.`;
+      }
+      if (pendingList.length > 0) {
+        return `Tunggu Admin memverifikasi dokumen ${pendingList.join(' & ')} Anda.`;
+      }
+      return 'Pastikan dokumen legalitas tetap aktif dan perbarui jika masa berlaku habis.';
     },
   },
   {
@@ -51,22 +103,85 @@ const ANALYSIS = [
       : 'Perbarui data omzet tiap bulan agar tren bisa terbaca dengan baik.',
   },
   {
-    getAnalysis: (bp) => bp.skor_kolektibilitas >= 70
-      ? 'Riwayat pembayaran cicilan bersih, tidak ada indikasi tunggakan.'
-      : 'Rasio cicilan cukup tinggi atau belum ada bukti pelunasan.',
-    getSaran: (bp) => bp.skor_kolektibilitas >= 70
-      ? 'Jaga kedisiplinan pembayaran untuk memudahkan persetujuan kredit.'
-      : 'Unggah bukti pelunasan utang lama untuk meningkatkan kolektibilitas.',
+    getAnalysis: (bp) => {
+      const hasBukti = bp.has_bukti_pelunasan;
+      const status = bp.document_statuses?.bukti_pelunasan_path || 'pending';
+
+      if (bp.skor_kolektibilitas >= 70) {
+        return 'Riwayat pembayaran cicilan bersih, tidak ada indikasi tunggakan.';
+      }
+      if (hasBukti) {
+        if (status === 'pending') {
+          return 'Bukti pelunasan telah diunggah dan sedang dalam proses verifikasi (audit) oleh Admin.';
+        }
+        if (status === 'rejected') {
+          return `Bukti pelunasan ditolak Admin. Catatan: ${bp.document_feedbacks?.bukti_pelunasan_path || 'Dokumen tidak sesuai.'}`;
+        }
+      }
+      return 'Rasio cicilan cukup tinggi atau bukti pelunasan belum diunggah.';
+    },
+    getSaran: (bp) => {
+      const hasBukti = bp.has_bukti_pelunasan;
+      const status = bp.document_statuses?.bukti_pelunasan_path || 'pending';
+
+      if (bp.skor_kolektibilitas >= 70) {
+        return 'Jaga kedisiplinan pembayaran untuk memudahkan persetujuan kredit.';
+      }
+      if (hasBukti) {
+        if (status === 'pending') {
+          return 'Tunggu Admin selesai memverifikasi bukti pelunasan Anda untuk menaikkan skor.';
+        }
+        if (status === 'rejected') {
+          return 'Unggah kembali bukti pelunasan yang valid sesuai catatan Admin.';
+        }
+      }
+      return 'Unggah bukti pelunasan utang lama (jika ada) untuk menaikkan nilai kolektibilitas.';
+    },
   },
   {
     getAnalysis: (bp) => {
-      if (bp.has_foto_usaha && bp.has_kontrak) return 'Foto usaha dan kontrak sewa sudah ada — bisnis terbukti beroperasi.';
-      if (bp.has_foto_usaha) return 'Foto usaha ada, tapi kontrak sewa/kepemilikan belum diunggah.';
-      return 'Bukti fisik usaha (foto & kontrak) belum ada.';
+      const getStatusLabel = (path, name) => {
+        const has = bp[`has_${path}`];
+        if (!has) return `${name} belum ada`;
+        const stat = bp.document_statuses?.[`${path}_path`] || 'pending';
+        if (stat === 'pending') return `${name} (Menunggu Audit)`;
+        if (stat === 'rejected') return `${name} (Ditolak)`;
+        return `${name} (Disetujui)`;
+      };
+
+      const fotoLabel = getStatusLabel('foto_usaha', 'Foto Usaha');
+      const kontrakLabel = getStatusLabel('kontrak', 'Kontrak Sewa/Kepemilikan');
+
+      return `Bukti fisik: ${fotoLabel} dan ${kontrakLabel}.`;
     },
     getSaran: (bp) => {
-      if (bp.has_foto_usaha && bp.has_kontrak) return 'Perbarui foto jika ada perubahan tempat usaha.';
-      return 'Unggah foto tampak depan usaha dan kontrak sewa/kepemilikan.';
+      const hasFoto = bp.has_foto_usaha;
+      const hasKontrak = bp.has_kontrak;
+      const fotoStat = bp.document_statuses?.foto_usaha_path || 'pending';
+      const kontrakStat = bp.document_statuses?.kontrak_path || 'pending';
+
+      const pendingList = [];
+      const missingList = [];
+      const rejectedList = [];
+
+      if (!hasFoto) missingList.push('Foto Usaha');
+      else if (fotoStat === 'pending') pendingList.push('Foto Usaha');
+      else if (fotoStat === 'rejected') rejectedList.push('Foto Usaha');
+
+      if (!hasKontrak) missingList.push('Kontrak Sewa');
+      else if (kontrakStat === 'pending') pendingList.push('Kontrak Sewa');
+      else if (kontrakStat === 'rejected') rejectedList.push('Kontrak Sewa');
+
+      if (missingList.length > 0) {
+        return `Segera unggah ${missingList.join(' & ')} di Profil → Dokumen Operasional.`;
+      }
+      if (rejectedList.length > 0) {
+        return `Unggah ulang dokumen ${rejectedList.join(' & ')} yang ditolak sesuai saran Admin.`;
+      }
+      if (pendingList.length > 0) {
+        return `Tunggu Admin memverifikasi bukti ${pendingList.join(' & ')} Anda.`;
+      }
+      return 'Perbarui foto jika ada perubahan fisik atau renovasi tempat usaha.';
     },
   },
   {
@@ -204,8 +319,45 @@ export default function KesehatanBisnis() {
   const best = bp ? metrics.reduce((a, b) => a.value > b.value ? a : b) : null;
   const worst = bp ? metrics.reduce((a, b) => a.value < b.value ? a : b) : null;
 
+  // Check if there are any documents pending audit
+  const getPendingCount = (bp) => {
+    if (!bp) return 0;
+    const docs = ['nib_path', 'npwp_path', 'rekening_path', 'foto_usaha_path', 'kontrak_path', 'bukti_pelunasan_path'];
+    let pendingCount = 0;
+    docs.forEach(doc => {
+      const hasFileKey = 'has_' + doc.replace('_path', '');
+      const hasFile = bp[hasFileKey] || bp[doc];
+      const status = bp.document_statuses?.[doc] || 'pending';
+      if (hasFile && status === 'pending') {
+        pendingCount++;
+      }
+    });
+    return pendingCount;
+  };
+
+  const pendingDocsCount = getPendingCount(bp);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 font-sans">
+      {pendingDocsCount > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-300/60 rounded-3xl p-4 flex items-center justify-between gap-4 shadow-sm backdrop-blur-md animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-200">
+              <Clock size={20} className="animate-spin text-amber-500" style={{ animationDuration: '4s' }} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-amber-800 leading-snug">Berkas Sedang Ditinjau Admin</p>
+              <p className="text-xs text-amber-700/80 mt-0.5 font-semibold">Ada {pendingDocsCount} dokumen yang saat ini dalam proses audit. Skor kesehatan bisnis akan diperbarui secara otomatis setelah disetujui Admin.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/profile?panel=dokumen')}
+            className="flex-shrink-0 px-4.5 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-amber-600/10 cursor-pointer"
+          >
+            Lihat Status Berkas
+          </button>
+        </div>
+      )}
 
       {/* HERO */}
       <div className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-10 relative overflow-hidden">

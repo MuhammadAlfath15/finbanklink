@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
 import BankLogin from './pages/BankLogin';
@@ -19,6 +19,17 @@ import PengajuanFlow from './pages/PengajuanFlow';
 import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 import { Toaster } from 'react-hot-toast';
+
+// Helper component to scroll to top on path changes
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 
 // Komponen Pelindung Rute berdasarkan Role
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -45,6 +56,7 @@ function App() {
   return (
     <>
       <Toaster position="top-center" />
+      <ScrollToTop />
       <Routes>
         {/* Halaman Publik */}
         <Route path="/" element={<Login />} />

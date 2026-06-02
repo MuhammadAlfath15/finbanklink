@@ -69,7 +69,14 @@ const LupaPassword = () => {
 
   // TAHAP 3: Ganti Password
   const handleUpdatePassword = async () => {
-    if (newPassword.length < 8) { setErrorMsg('Password minimal 8 karakter!'); return; }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!newPassword) {
+      setErrorMsg('Password wajib diisi!');
+      return;
+    } else if (!passwordRegex.test(newPassword)) {
+      setErrorMsg('Password min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!');
+      return;
+    }
     clearMessages();
     setLoading(true);
     try {
@@ -197,7 +204,7 @@ const LupaPassword = () => {
           {step === 3 && (
             <div className="animate-in fade-in duration-500 text-center">
               <h2 className="text-5xl font-bold mb-4">Password Baru</h2>
-              <p className="text-gray-500 mb-10">Buat password baru minimal 8 karakter.</p>
+              <p className="text-gray-500 mb-10">Password min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!</p>
               <input
                 type="password"
                 placeholder="Password Baru"

@@ -8,6 +8,7 @@ import {
 import { getProfile, updateProfile, getBusinessProfile, updateBusinessProfile, changePassword, deleteAccount } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
+import defaultAvatar from '../assets/profile_avatar.png';
 
 const formatRupiah = (val) => {
   if (!val && val !== 0) return '';
@@ -15,12 +16,57 @@ const formatRupiah = (val) => {
 };
 const parseRupiah = (str) => String(str).replace(/\D/g, '');
 
+const getCroppedImg = (imageSrc, scale, xPercent, yPercent) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = imageSrc;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 300; // standard high-quality avatar size
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, size, size);
+
+      const imgRatio = img.width / img.height;
+      let drawWidth, drawHeight;
+
+      if (imgRatio > 1) {
+        // Landscape: width fits container, height scales down (contain)
+        drawWidth = size;
+        drawHeight = size / imgRatio;
+      } else {
+        // Portrait: height fits container, width scales down (contain)
+        drawHeight = size;
+        drawWidth = size * imgRatio;
+      }
+
+      const scaledWidth = drawWidth * scale;
+      const scaledHeight = drawHeight * scale;
+
+      const translateX = (xPercent / 100) * size * scale;
+      const translateY = (yPercent / 100) * size * scale;
+
+      const centerX = (size - scaledWidth) / 2;
+      const centerY = (size - scaledHeight) / 2;
+
+      const destX = centerX + translateX;
+      const destY = centerY + translateY;
+
+      ctx.drawImage(img, destX, destY, scaledWidth, scaledHeight);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = (err) => reject(err);
+  });
+};
+
 // ── Sub-panel components ────────────────────────────────────────────────────
 
 const PersonalInfo = ({ user, onUpdate }) => {
-  const [form, setForm]       = useState({ name: '', email: '', phone: '', bio: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', bio: '' });
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getProfile()
@@ -101,9 +147,8 @@ const BizFileButton = ({ id, label, hint, file, hasExisting, accept, onChange })
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`w-full flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl border-2 transition-all ${
-          ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/40'
-        }`}
+        className={`w-full flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl border-2 transition-all ${ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/40'
+          }`}
       >
         <div className="flex items-center gap-2 min-w-0">
           {ok ? <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" /> : <Upload size={18} className="text-blue-400 flex-shrink-0" />}
@@ -127,9 +172,8 @@ const BizCameraButton = ({ id, label, preview, file, hasExisting, onChange }) =>
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`w-full min-h-[112px] rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all px-3 py-3 ${
-          ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400'
-        }`}
+        className={`w-full min-h-[112px] rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all px-3 py-3 ${ok ? 'border-emerald-400 bg-emerald-50' : 'border-dashed border-gray-300 bg-white hover:border-blue-400'
+          }`}
       >
         {preview ? (
           <img src={preview} alt="" className="max-h-24 w-full object-contain rounded-lg" />
@@ -333,7 +377,7 @@ const PwInput = ({ label, name, value, onChange, placeholder }) => {
           className="flex-1 px-4 py-2.5 bg-transparent text-sm text-gray-700 focus:outline-none"
         />
         <button type="button" onClick={() => setShow(v => !v)} className="px-3 text-gray-400 hover:text-gray-600">
-          {show ? <EyeOff size={16}/> : <Eye size={16}/>}
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
     </div>
@@ -384,7 +428,7 @@ const DeleteModal = ({ onClose, onConfirm }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-[fadeInScale_0.2s_ease]">
-        <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600"><X size={20}/></button>
+        <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600"><X size={20} /></button>
         {step === 1 ? (
           <>
             <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-5 mx-auto">
@@ -393,7 +437,7 @@ const DeleteModal = ({ onClose, onConfirm }) => {
             <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Hapus Akun?</h3>
             <p className="text-sm text-gray-500 text-center mb-1">Tindakan ini <strong className="text-red-500">tidak dapat dibatalkan</strong>. Seluruh data kamu akan dihapus permanen:</p>
             <ul className="mt-4 space-y-2 mb-6">
-              {['Profil & informasi personal','Dokumen legalitas yang diunggah','Riwayat pengajuan pinjaman','Data keuangan & skor bisnis'].map((t,i) => (
+              {['Profil & informasi personal', 'Dokumen legalitas yang diunggah', 'Riwayat pengajuan pinjaman', 'Data keuangan & skor bisnis'].map((t, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />{t}
                 </li>
@@ -418,7 +462,7 @@ const DeleteModal = ({ onClose, onConfirm }) => {
                 placeholder="Password kamu"
                 className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-700 focus:outline-none"
               />
-              <button type="button" onClick={() => setShow(v => !v)} className="px-3 text-gray-400">{show ? <EyeOff size={16}/> : <Eye size={16}/>}</button>
+              <button type="button" onClick={() => setShow(v => !v)} className="px-3 text-gray-400">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Kembali</button>
@@ -427,7 +471,7 @@ const DeleteModal = ({ onClose, onConfirm }) => {
                 disabled={loading || !pw}
                 className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {loading && <Loader2 size={14} className="animate-spin"/>}
+                {loading && <Loader2 size={14} className="animate-spin" />}
                 {loading ? 'Menghapus...' : 'Hapus Akun'}
               </button>
             </div>
@@ -451,7 +495,13 @@ const Pengaturan = () => {
   const handlePwSave = async () => {
     const { current_password, new_password, new_password_confirmation } = pwForm;
     if (!current_password || !new_password || !new_password_confirmation) { toast.error('Semua field wajib diisi.'); return; }
-    if (new_password.length < 8) { toast.error('Password baru minimal 8 karakter.'); return; }
+    
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(new_password)) {
+      toast.error('Password baru min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol!');
+      return;
+    }
+    
     if (new_password !== new_password_confirmation) { toast.error('Konfirmasi password tidak cocok.'); return; }
     setPwSaving(true);
     try {
@@ -478,9 +528,9 @@ const Pengaturan = () => {
   });
   const notifItems = [
     { key: 'email_pengajuan', label: 'Status Pengajuan Pinjaman', desc: 'Email instan saat status pengajuan (Verifikasi, Survei, Disetujui/Ditolak) diperbarui oleh bank mitra' },
-    { key: 'email_promo',     label: 'Rekomendasi Kemitraan & Penawaran Modal', desc: 'Alert kecocokan produk pembiayaan baru dari bank mitra yang sesuai kriteria skor bisnis Anda' },
-    { key: 'push_reminder',   label: 'Pengingat Kelengkapan Berkas', desc: 'Alert sistem penting untuk segera melengkapi dokumen agar skor bisnis optimal' },
-    { key: 'push_skor',       label: 'Laporan & Pembaruan Skor Kesehatan', desc: 'Push notifikasi jika indikator skor kesehatan bisnis mengalami kenaikan atau pembaruan' },
+    { key: 'email_promo', label: 'Rekomendasi Kemitraan & Penawaran Modal', desc: 'Alert kecocokan produk pembiayaan baru dari bank mitra yang sesuai kriteria skor bisnis Anda' },
+    { key: 'push_reminder', label: 'Pengingat Kelengkapan Berkas', desc: 'Alert sistem penting untuk segera melengkapi dokumen agar skor bisnis optimal' },
+    { key: 'push_skor', label: 'Laporan & Pembaruan Skor Kesehatan', desc: 'Push notifikasi jika indikator skor kesehatan bisnis mengalami kenaikan atau pembaruan' },
   ];
   const toggleNotif = (key, val) => {
     const next = { ...notif, [key]: val };
@@ -512,8 +562,8 @@ const Pengaturan = () => {
     }
   });
   const privItems = [
-    { key: 'profil_publik',  label: 'Matchmaking Usaha Terenkripsi', desc: 'Bank mitra dapat mencocokkan kriteria mereka dengan usahamu secara anonim. Nama & kontak dibagikan hanya jika kamu menyetujui penawaran' },
-    { key: 'analitik',       label: 'Analitik Anonim Kinerja Platform', desc: 'Kirim data analitik interaksi terenkripsi tanpa menyertakan dokumen finansial untuk optimasi sistem' },
+    { key: 'profil_publik', label: 'Matchmaking Usaha Terenkripsi', desc: 'Bank mitra dapat mencocokkan kriteria mereka dengan usahamu secara anonim. Nama & kontak dibagikan hanya jika kamu menyetujui penawaran' },
+    { key: 'analitik', label: 'Analitik Anonim Kinerja Platform', desc: 'Kirim data analitik interaksi terenkripsi tanpa menyertakan dokumen finansial untuk optimasi sistem' },
   ];
   const togglePriv = (key, val) => {
     const next = { ...priv, [key]: val };
@@ -572,15 +622,15 @@ const Pengaturan = () => {
           <SettingRow icon={Lock} iconBg="bg-[#4A90D9]" label="Ganti Password" desc="Ubah password akun kamu secara berkala">
             <div className="space-y-4 mt-3">
               <PwInput label="Password Saat Ini" name="current_password" value={pwForm.current_password} onChange={handlePwChange} placeholder="Masukkan password lama" />
-              <PwInput label="Password Baru" name="new_password" value={pwForm.new_password} onChange={handlePwChange} placeholder="Min. 8 karakter" />
+              <PwInput label="Password Baru" name="new_password" value={pwForm.new_password} onChange={handlePwChange} placeholder="Min. 8 karakter (wajib huruf besar, kecil, angka, simbol)" />
               <PwInput label="Konfirmasi Password Baru" name="new_password_confirmation" value={pwForm.new_password_confirmation} onChange={handlePwChange} placeholder="Ulangi password baru" />
               <div className="pt-1 flex justify-between items-center">
-                <p className="text-xs text-gray-400">Setelah ganti password, kamu akan diminta login ulang.</p>
+                <p className="text-xs text-gray-400">Min. 8 karakter, wajib ada huruf besar, kecil, angka & simbol. Setelah ganti, kamu harus login ulang.</p>
                 <button
                   type="button" onClick={handlePwSave} disabled={pwSaving}
                   className="px-8 py-2.5 bg-[#4A90D9] text-white rounded-xl font-bold text-sm hover:bg-blue-500 transition disabled:opacity-60 flex items-center gap-2"
                 >
-                  {pwSaving && <Loader2 size={14} className="animate-spin"/>}
+                  {pwSaving && <Loader2 size={14} className="animate-spin" />}
                   {pwSaving ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
@@ -591,7 +641,7 @@ const Pengaturan = () => {
           <SettingRow icon={Bell} iconBg="bg-violet-500" label="Notifikasi" desc="Atur notifikasi email dan push notification">
             <div className="space-y-1 mt-3">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Email</p>
-              {notifItems.slice(0,2).map(item => (
+              {notifItems.slice(0, 2).map(item => (
                 <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-700">{item.label}</p>
@@ -627,7 +677,7 @@ const Pengaturan = () => {
                     <option value="id">🇮🇩  Bahasa Indonesia</option>
                     <option value="en">🇺🇸  English</option>
                   </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
+                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -642,7 +692,7 @@ const Pengaturan = () => {
                     <option value="WITA">WITA — Waktu Indonesia Tengah (UTC+8)</option>
                     <option value="WIT">WIT — Waktu Indonesia Timur (UTC+9)</option>
                   </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
+                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div className="bg-blue-50 rounded-2xl px-4 py-3">
@@ -901,7 +951,7 @@ const InfoUmum = ({ onBusinessUpdated }) => {
       fd.append('alamat_usaha', form.alamat_usaha);
       fd.append('lama_usaha', form.lama_usaha);
       fd.append('jumlah_karyawan', form.jumlah_karyawan);
-      
+
       const oz = parseRupiah(form.omzet_bulan_ini);
       if (oz) fd.append('omzet_bulan_ini', oz);
 
@@ -1029,22 +1079,28 @@ const InfoGrid = ({ bp }) => (
 
 // ── Nav config ──────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { key: 'personal',   icon: User,       label: 'Personal Info' },
-  { key: 'dokumen',    icon: FileText,   label: 'Dokumen Legalitas' },
-  { key: 'keuangan',   icon: CreditCard, label: 'Data Keuangan' },
-  { key: 'pengaturan', icon: Settings,   label: 'Pengaturan' },
-  { key: 'info',       icon: Info,       label: 'Info Umum' },
+  { key: 'personal', icon: User, label: 'Personal Info' },
+  { key: 'dokumen', icon: FileText, label: 'Dokumen Legalitas' },
+  { key: 'keuangan', icon: CreditCard, label: 'Data Keuangan' },
+  { key: 'pengaturan', icon: Settings, label: 'Pengaturan' },
+  { key: 'info', icon: Info, label: 'Info Umum' },
 ];
 
 // ── Main ────────────────────────────────────────────────────────────────────
 const Profile = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [user,      setUser]      = useState(JSON.parse(localStorage.getItem('user')) || { name: 'User' });
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { name: 'User' });
   const [activeKey, setActiveKey] = useState(() => {
     const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('panel');
     return p && ['personal', 'dokumen', 'keuangan', 'pengaturan', 'info'].includes(p) ? p : 'personal';
   });
   const [healthSnap, setHealthSnap] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [tempAvatar, setTempAvatar] = useState('');
+  const [tempScale, setTempScale] = useState(1);
+  const [tempX, setTempX] = useState(0);
+  const [tempY, setTempY] = useState(0);
+  const [savingCrop, setSavingCrop] = useState(false);
 
   useEffect(() => {
     getBusinessProfile()
@@ -1074,125 +1130,254 @@ const Profile = () => {
     localStorage.setItem('user', JSON.stringify({ ...user, ...updatedUser }));
   };
 
-  const handleAvatarChange = async (e) => {
+  const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Ukuran foto maksimal 2MB');
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64Avatar = reader.result;
-      const updatedUser = { ...user, avatar: base64Avatar };
-      handleUserUpdate(updatedUser);
-      
-      try {
-        await updateProfile(updatedUser);
-        toast.success('Foto profil berhasil diperbarui!');
-      } catch (err) {
-        toast.error('Gagal menyimpan ke server: ' + (err.response?.data?.message || err.message));
-        console.error("Avatar upload error:", err);
-      }
+    reader.onloadend = () => {
+      setTempAvatar(reader.result);
+      setTempScale(1);
+      setTempX(0);
+      setTempY(0);
+      setShowCropModal(true);
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleApplyCrop = async () => {
+    setSavingCrop(true);
+    try {
+      const croppedBase64 = await getCroppedImg(tempAvatar, tempScale, tempX, tempY);
+      const updatedUser = { ...user, avatar: croppedBase64 };
+      await updateProfile(updatedUser);
+      handleUserUpdate(updatedUser);
+      setShowCropModal(false);
+      toast.success('Foto profil berhasil dipasang!');
+    } catch (err) {
+      toast.error('Gagal menyimpan ke server: ' + (err.response?.data?.message || err.message));
+      console.error("Avatar upload error:", err);
+    } finally {
+      setSavingCrop(false);
+    }
   };
 
   const renderPanel = () => {
     switch (activeKey) {
-      case 'dokumen':    return <DokumenLegalitas onBusinessUpdated={setHealthSnap} />;
+      case 'dokumen': return <DokumenLegalitas onBusinessUpdated={setHealthSnap} />;
       case 'pengaturan': return <Pengaturan />;
-      case 'keuangan':   return <DataKeuangan onBusinessUpdated={setHealthSnap} />;
-      case 'info':       return <InfoUmum onBusinessUpdated={setHealthSnap} />;
-      default:           return <PersonalInfo user={user} onUpdate={handleUserUpdate} />;
+      case 'keuangan': return <DataKeuangan onBusinessUpdated={setHealthSnap} />;
+      case 'info': return <InfoUmum onBusinessUpdated={setHealthSnap} />;
+      default: return <PersonalInfo user={user} onUpdate={handleUserUpdate} />;
     }
   };
 
   return (
-    <div className="flex gap-6 font-sans p-2">
+    <>
+      <div className="flex gap-6 font-sans p-2">
 
-      {/* === SISI KIRI === */}
-      <div className="w-64 flex-shrink-0 space-y-4">
+        {/* === SISI KIRI === */}
+        <div className="w-64 flex-shrink-0 space-y-4">
 
-        {/* Card Biru */}
-        <div className="bg-gradient-to-br from-[#4A90D9] via-[#5A9FE8] to-[#3A7BC8] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
-          {/* Decorative background circles */}
-          <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/5 rounded-full" />
-          <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/5 rounded-full" />
+          {/* Card Biru */}
+          <div className="bg-gradient-to-br from-[#4A90D9] via-[#5A9FE8] to-[#3A7BC8] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+            {/* Decorative background circles */}
+            <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/5 rounded-full" />
+            <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/5 rounded-full" />
 
-          {/* Verified badge */}
-          <div className="flex justify-center mb-4 relative">
-            <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 text-[10px] font-semibold border border-white/20">
-              <BadgeCheck size={13} className="text-emerald-300" />
-              <span>Akun Terverifikasi</span>
+            {/* Verified badge */}
+            <div className="flex justify-center mb-4 relative">
+              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 text-[10px] font-semibold border border-white/20">
+                <BadgeCheck size={13} className="text-emerald-300" />
+                <span>Akun Terverifikasi</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center relative">
+              <label className="relative w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden mb-3 shadow-lg cursor-pointer group">
+                <input type="file" accept="image/png, image/jpeg, image/jpg" className="hidden" onChange={handleAvatarChange} />
+                <img
+                  src={user.avatar || defaultAvatar}
+                  alt="Profile"
+                  className="w-full h-full object-cover transition-all duration-300"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Camera size={20} className="text-white drop-shadow-md" />
+                </div>
+              </label>
+              <h2 className="text-base font-bold tracking-wide text-center">{user.name}</h2>
+              <p className="text-xs opacity-80 mt-0.5">{user.phone || '—'}</p>
+
+              <p className="text-[10px] opacity-50 mt-1">Bergabung sejak {new Date(user.created_at || Date.now()).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="flex gap-2 mt-5 relative">
+              <Link to="/kesehatan-bisnis" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
+                <span className="font-bold">Skor Bisnis</span>
+                {healthSnap && <span className="text-[9px] opacity-70 font-semibold">{healthSnap.skor_total}/600</span>}
+              </Link>
+              <Link to="/cari-modal" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
+                <span className="font-bold">Ajukan Pinjaman</span>
+                <span className="text-[9px] opacity-70 font-semibold">Mulai proses →</span>
+              </Link>
             </div>
           </div>
 
-          <div className="flex flex-col items-center relative">
-            <label className="relative w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden mb-3 shadow-lg cursor-pointer group">
-              <input type="file" accept="image/png, image/jpeg, image/jpg" className="hidden" onChange={handleAvatarChange} />
-              <img src={user.avatar || "https://i.pravatar.cc/150?img=47"} alt="Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <Camera size={20} className="text-white drop-shadow-md" />
+          {/* Menu Navigasi */}
+          <div className="bg-white rounded-3xl border border-gray-100 p-3 space-y-0.5 shadow-sm">
+            {NAV_ITEMS.map(({ key, icon: Icon, label }) => {
+              const isActive = activeKey === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => goNav(key)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition group ${isActive ? 'text-[#4A90D9]' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition ${isActive ? 'bg-[#4A90D9]' : 'bg-gray-100 group-hover:bg-gray-200'}`}>
+                    <Icon size={14} className={isActive ? 'text-white' : 'text-gray-500'} />
+                  </div>
+                  <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* === SISI KANAN === */}
+        <div className="flex-1 space-y-4">
+          {renderPanel()}
+          {healthSnap && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/90 px-4 py-3 text-sm text-blue-950">
+              <span>
+                Skor kesehatan bisnis terbaru: <strong className="font-extrabold">{healthSnap.skor_total}</strong>
+                <span className="text-blue-600/80">/600</span>
+              </span>
+              <Link to="/kesehatan-bisnis" className="font-bold text-[#4A90D9] hover:underline">
+                Lihat ringkasan
+              </Link>
+            </div>
+          )}
+          <InfoGrid bp={healthSnap} />
+        </div>
+      </div>
+
+      {/* Crop Modal */}
+      {showCropModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 pb-4 text-center border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800">Atur Foto Profil</h3>
+              <p className="text-xs text-gray-400 mt-1">Sesuaikan posisi dan perbesaran agar wajah terlihat jelas</p>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 flex flex-col items-center gap-6">
+              {/* Preview Circle */}
+              <div className="w-32 h-32 rounded-full border-4 border-gray-100 shadow-md overflow-hidden bg-gray-50 relative">
+                <img
+                  src={tempAvatar || defaultAvatar}
+                  alt="Preview"
+                  className="w-full h-full object-contain"
+                  style={{ transform: `scale(${tempScale}) translate(${tempX}%, ${tempY}%)` }}
+                />
               </div>
-            </label>
-            <h2 className="text-base font-bold tracking-wide text-center">{user.name}</h2>
-            <p className="text-xs opacity-80 mt-0.5">{user.phone || '—'}</p>
-            <p className="text-[10px] opacity-50 mt-1">Bergabung sejak {new Date(user.created_at || Date.now()).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
-          </div>
 
-          {/* Quick Action Buttons */}
-          <div className="flex gap-2 mt-5 relative">
-            <Link to="/kesehatan-bisnis" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
-              <span className="font-bold">Skor Bisnis</span>
-              {healthSnap && <span className="text-[9px] opacity-70 font-semibold">{healthSnap.skor_total}/600</span>}
-            </Link>
-            <Link to="/cari-modal" className="flex-1 bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all duration-200 py-1.5 rounded-xl text-[10px] flex flex-col items-center gap-0.5 border border-white/20 hover:scale-[1.02] active:scale-95">
-              <span className="font-bold">Ajukan Pinjaman</span>
-              <span className="text-[9px] opacity-70 font-semibold">Mulai proses →</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Menu Navigasi */}
-        <div className="bg-white rounded-3xl border border-gray-100 p-3 space-y-0.5 shadow-sm">
-          {NAV_ITEMS.map(({ key, icon: Icon, label }) => {
-            const isActive = activeKey === key;
-            return (
-              <button
-                key={key}
-                onClick={() => goNav(key)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition group ${isActive ? 'text-[#4A90D9]' : 'text-gray-500 hover:bg-gray-50'}`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition ${isActive ? 'bg-[#4A90D9]' : 'bg-gray-100 group-hover:bg-gray-200'}`}>
-                  <Icon size={14} className={isActive ? 'text-white' : 'text-gray-500'} />
+              {/* Sliders container */}
+              <div className="w-full space-y-4">
+                {/* Zoom Slider */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold text-gray-500">
+                    <span>Perbesar (Zoom)</span>
+                    <span>{Math.round(tempScale * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.05"
+                    value={tempScale}
+                    onChange={(e) => setTempScale(Number(e.target.value))}
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#4A90D9] focus:outline-none"
+                  />
                 </div>
-                <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* === SISI KANAN === */}
-      <div className="flex-1 space-y-4">
-        {renderPanel()}
-        {healthSnap && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/90 px-4 py-3 text-sm text-blue-950">
-            <span>
-              Skor kesehatan bisnis terbaru: <strong className="font-extrabold">{healthSnap.skor_total}</strong>
-              <span className="text-blue-600/80">/600</span>
-            </span>
-            <Link to="/kesehatan-bisnis" className="font-bold text-[#4A90D9] hover:underline">
-              Lihat ringkasan
-            </Link>
+                {/* Horizontal Shift */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold text-gray-500">
+                    <span>Geser Kiri / Kanan</span>
+                    <span>{tempX}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="1"
+                    value={tempX}
+                    onChange={(e) => setTempX(Number(e.target.value))}
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#4A90D9] focus:outline-none"
+                  />
+                </div>
+
+                {/* Vertical Shift */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold text-gray-500">
+                    <span>Geser Atas / Bawah</span>
+                    <span>{tempY}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="1"
+                    value={tempY}
+                    onChange={(e) => setTempY(Number(e.target.value))}
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#4A90D9] focus:outline-none"
+                  />
+                </div>
+
+                {/* Reset Button */}
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempScale(1);
+                      setTempX(0);
+                      setTempY(0);
+                    }}
+                    className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 text-xs font-bold rounded-xl transition"
+                  >
+                    Reset Posisi
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setShowCropModal(false)}
+                className="flex-1 py-4 text-sm font-bold text-gray-500 hover:bg-gray-50 transition border-r border-gray-100 uppercase tracking-wider"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyCrop}
+                disabled={savingCrop}
+                className="flex-1 py-4 text-sm font-bold text-[#4A90D9] hover:bg-gray-50 transition uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingCrop && <Loader2 size={14} className="animate-spin" />}
+                {savingCrop ? 'Memasang...' : 'Pasang Foto'}
+              </button>
+            </div>
           </div>
-        )}
-        <InfoGrid bp={healthSnap} />
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 

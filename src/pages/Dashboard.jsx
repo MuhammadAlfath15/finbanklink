@@ -1093,13 +1093,10 @@ export default function Dashboard() {
                   <p className="text-white/90 text-xs md:text-sm leading-relaxed max-w-sm mb-6 font-medium drop-shadow-sm hidden md:block">
                     {ad.desc}
                   </p>
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] md:text-xs font-black text-white tracking-wider select-none shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.8)]"></span>
-                    </span>
-                    <span>{ad.cta || 'Penawaran Spesial'}</span>
-                  </div>
+                  <button className="px-6 py-2.5 bg-white text-gray-900 text-[11px] md:text-xs font-bold rounded-full hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all shadow-[0_8px_20px_-6px_rgba(255,255,255,0.4)] flex items-center gap-2">
+                    {ad.cta}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5 stroke-2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                  </button>
                 </div>
               </div>
             ))}

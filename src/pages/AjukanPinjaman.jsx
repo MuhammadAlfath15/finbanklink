@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, X, ChevronRight } from 'lucide-react';
-import { sendLoanOtp, getMySubmissions } from '../services/api';
+import { ArrowLeft, MessageCircle, X, ChevronRight, Mail } from 'lucide-react';
+import { sendLoanOtp, sendLoanOtpEmail, getMySubmissions } from '../services/api';
 
 /* ─────────────────────────────────────────────
    OTP Bottom-Sheet Modal
    ───────────────────────────────────────────── */
-const OtpModal = ({ onConfirm, onOtherWay, onCancel, loading, error }) => {
+const OtpModal = ({ onConfirmWhatsapp, onConfirmEmail, onCancel, loading, error }) => {
+  const [method, setMethod] = useState('whatsapp'); // 'whatsapp' | 'email'
+
   return (
     <>
       <style>{`
@@ -73,69 +75,136 @@ const OtpModal = ({ onConfirm, onOtherWay, onCancel, loading, error }) => {
 
           {/* Main content */}
           <div className="px-6 pb-2">
-            {/* WhatsApp icon */}
-            <div className="flex justify-center mb-4">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }}
-              >
-                <MessageCircle className="text-white" size={30} fill="white" />
-              </div>
-            </div>
+            {method === 'whatsapp' ? (
+              <>
+                {/* WhatsApp icon */}
+                <div className="flex justify-center mb-4">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg"
+                    style={{ background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }}
+                  >
+                    <MessageCircle className="text-white" size={30} fill="white" />
+                  </div>
+                </div>
 
-            <h2 className="text-center text-[18px] font-black text-gray-900 mb-2">
-              Kirim Kode OTP
-            </h2>
-            <p className="text-center text-sm text-gray-500 leading-relaxed mb-4">
-              FinBankLink akan mengirimkan kode OTP ke nomor WhatsApp yang terdaftar pada akun kamu untuk memverifikasi pengajuan ini.
-            </p>
-
-            {/* Error Message inside Modal */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
-                <p className="text-xs font-bold text-red-600 mb-0.5">⚠️ Gagal</p>
-                <p className="text-[11px] text-red-500 leading-snug">
-                  {error.message}
+                <h2 className="text-center text-[18px] font-black text-gray-900 mb-2">
+                  Kirim Kode OTP
+                </h2>
+                <p className="text-center text-sm text-gray-500 leading-relaxed mb-4">
+                  FinBankLink akan mengirimkan kode OTP ke nomor WhatsApp yang terdaftar pada akun Anda untuk memverifikasi pengajuan ini.
                 </p>
-              </div>
-            )}
 
-            {/* CTA – Send via WhatsApp */}
-            <button
-              id="btn-kirim-otp-wa"
-              onClick={onConfirm}
-              disabled={loading}
-              className={`w-full py-3.5 rounded-2xl text-white text-[15px] font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform duration-150
-                ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-              style={{ background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }}
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Mengirim...
-                </>
-              ) : (
-                <>
-                  <MessageCircle size={18} fill="white" />
-                  {error ? 'Coba Lagi' : 'Kirim via WhatsApp'}
-                </>
-              )}
-            </button>
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                    <p className="text-xs font-bold text-red-600 mb-0.5">⚠️ Gagal</p>
+                    <p className="text-[11px] text-red-500 leading-snug">
+                      {error.message}
+                    </p>
+                  </div>
+                )}
+
+                {/* CTA – Send via WhatsApp */}
+                <button
+                  id="btn-kirim-otp-wa"
+                  onClick={onConfirmWhatsapp}
+                  disabled={loading}
+                  className={`w-full py-3.5 rounded-2xl text-white text-[15px] font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform duration-150
+                    ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  style={{ background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)' }}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle size={18} fill="white" />
+                      {error ? 'Coba Lagi' : 'Kirim via WhatsApp'}
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Email icon */}
+                <div className="flex justify-center mb-4">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                  >
+                    <Mail className="text-white" size={30} />
+                  </div>
+                </div>
+
+                <h2 className="text-center text-[18px] font-black text-gray-900 mb-2">
+                  Kirim Kode OTP ke Email
+                </h2>
+                <p className="text-center text-sm text-gray-500 leading-relaxed mb-4">
+                  FinBankLink akan mengirimkan kode OTP ke alamat Email yang terdaftar pada akun Anda untuk memverifikasi pengajuan ini.
+                </p>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                    <p className="text-xs font-bold text-red-600 mb-0.5">⚠️ Gagal</p>
+                    <p className="text-[11px] text-red-500 leading-snug">
+                      {error.message}
+                    </p>
+                  </div>
+                )}
+
+                {/* CTA – Send via Email */}
+                <button
+                  id="btn-kirim-otp-email"
+                  onClick={onConfirmEmail}
+                  disabled={loading}
+                  className={`w-full py-3.5 rounded-2xl text-white text-[15px] font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform duration-150
+                    ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' }}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={18} />
+                      {error ? 'Coba Lagi' : 'Kirim via Email'}
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
 
           {/* Secondary options */}
           <div className="px-6 pt-2 pb-2">
-            <button
-              id="btn-cara-lain-otp"
-              onClick={onOtherWay}
-              className="w-full py-3 rounded-2xl text-[14px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 flex items-center justify-center gap-1 transition-colors duration-150"
-            >
-              Cara Lain
-              <ChevronRight size={16} />
-            </button>
+            {method === 'whatsapp' ? (
+              <button
+                id="btn-cara-lain-otp"
+                onClick={() => setMethod('email')}
+                className="w-full py-3 rounded-2xl text-[14px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 flex items-center justify-center gap-1 transition-colors duration-150"
+              >
+                Cara Lain: Verifikasi via Email
+                <ChevronRight size={16} />
+              </button>
+            ) : (
+              <button
+                id="btn-cara-lain-otp"
+                onClick={() => setMethod('whatsapp')}
+                className="w-full py-3 rounded-2xl text-[14px] font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center gap-1 transition-colors duration-150"
+              >
+                Cara Lain: Verifikasi via WhatsApp
+                <ChevronRight size={16} />
+              </button>
+            )}
           </div>
 
           <div className="px-6 pt-1 pb-6">
@@ -364,14 +433,15 @@ const AjukanPinjaman = () => {
   };
 
   /* user confirms OTP sending */
-  const handleOtpConfirm = async () => {
+  /* user confirms OTP sending via WhatsApp */
+  const handleOtpConfirmWhatsapp = async () => {
     setLoading(true);
     setOtpError(null);
     try {
       const res = await sendLoanOtp(bank.id);
       setShowOtp(false);
       navigate('/verifikasi-otp', {
-        state: { bank, maskedPhone: res.phone ?? null },
+        state: { bank, maskedPhone: res.phone ?? null, method: 'whatsapp' },
       });
     } catch (err) {
       const data   = err?.response?.data ?? {};
@@ -383,11 +453,24 @@ const AjukanPinjaman = () => {
     }
   };
 
-  /* user wants another OTP method — placeholder, bisa dikembangkan */
-  const handleOtherWay = () => {
-    setShowOtp(false);
-    // TODO: navigasi ke halaman metode OTP alternatif
-    alert('Fitur cara lain akan segera hadir.');
+  /* user confirms OTP sending via Email */
+  const handleOtpConfirmEmail = async () => {
+    setLoading(true);
+    setOtpError(null);
+    try {
+      const res = await sendLoanOtpEmail(bank.id);
+      setShowOtp(false);
+      navigate('/verifikasi-otp', {
+        state: { bank, maskedEmail: res.email ?? null, method: 'email' },
+      });
+    } catch (err) {
+      const data   = err?.response?.data ?? {};
+      const msg    = data.message ?? 'Gagal mengirim OTP ke Email. Coba lagi.';
+      const detail = data.detail  ?? null;
+      setOtpError({ message: msg, detail });
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* user cancels OTP */
@@ -565,8 +648,8 @@ const AjukanPinjaman = () => {
       {/* ── OTP Modal ── */}
       {showOtp && (
         <OtpModal
-          onConfirm={handleOtpConfirm}
-          onOtherWay={handleOtherWay}
+          onConfirmWhatsapp={handleOtpConfirmWhatsapp}
+          onConfirmEmail={handleOtpConfirmEmail}
           onCancel={handleOtpCancel}
           loading={loading}
           error={otpError}

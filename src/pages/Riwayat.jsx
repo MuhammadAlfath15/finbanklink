@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Phone, MessageCircle, Copy, Check, HelpCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getMySubmissions, cancelSubmission } from '../services/api';
+import { getMySubmissions, cancelSubmission, postUserSubmissionMessage } from '../services/api';
 import { buildTimeline, pickActiveSubmission, shortDate } from '../utils/submissionProgress';
 
 const fmt = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
@@ -62,11 +62,141 @@ function bankMessage(statusRaw, namaBank, message = '') {
   return { title: 'Informasi', body: '—' };
 }
 
+const BANK_CONTACTS = {
+  'Bank BCA': {
+    phone: '1500888',
+    whatsapp: '628111500998',
+    name: 'Halo BCA',
+  },
+  'BCA Syariah': {
+    phone: '1500888',
+    whatsapp: '628111500998',
+    name: 'BCA Syariah CS',
+  },
+  'Bank Mandiri': {
+    phone: '14000',
+    whatsapp: '628118414000',
+    name: 'Mandiri Care',
+  },
+  'Bank BRI': {
+    phone: '1500017',
+    whatsapp: '628121214017',
+    name: 'Sabrina BRI',
+  },
+  'Bank BNI': {
+    phone: '1500046',
+    whatsapp: '62811500046',
+    name: 'BNI Call',
+  },
+  'Bank BTN': {
+    phone: '1500286',
+    whatsapp: '628119515002',
+    name: 'BTN Contact Center',
+  },
+  'Bank CIMB Niaga': {
+    phone: '14041',
+    whatsapp: '628129914041',
+    name: 'CIMB Niaga CS',
+  },
+  'Bank Danamon': {
+    phone: '1500090',
+    whatsapp: '628121111500090',
+    name: 'Hello Danamon',
+  },
+  'Bank Mega': {
+    phone: '1500010',
+    whatsapp: '6282208215000',
+    name: 'Mila Bank Mega',
+  },
+  'Bank OCBC NISP': {
+    phone: '1500999',
+    whatsapp: '628121500999',
+    name: 'Tanya OCBC NISP',
+  },
+  'Bank Panin': {
+    phone: '1500678',
+    whatsapp: '628041401678',
+    name: 'Call Panin',
+  },
+  'Bank BSI': {
+    phone: '14040',
+    whatsapp: '6281511000140',
+    name: 'Aisyah BSI',
+  },
+  'Bank Muamalat': {
+    phone: '1500016',
+    whatsapp: '628118015000',
+    name: 'Muamalat CS',
+  },
+  'Bank Mega Syariah': {
+    phone: '02180660900',
+    whatsapp: '628041500010',
+    name: 'Mega Syariah Call',
+  },
+  'BTPN Syariah': {
+    phone: '1500300',
+    whatsapp: '628121500300',
+    name: 'BTPN Syariah Care',
+  },
+};
+
+function getBankContact(bankName) {
+  const nameClean = bankName?.trim();
+  if (!nameClean) {
+    return {
+      phone: '02112345678',
+      whatsapp: '6281234567890',
+      name: 'Layanan FinbankLink',
+      isFallback: true,
+    };
+  }
+  const matchKey = Object.keys(BANK_CONTACTS).find(k => nameClean.toLowerCase().includes(k.toLowerCase()));
+  if (matchKey) {
+    return {
+      ...BANK_CONTACTS[matchKey],
+      isFallback: false,
+    };
+  }
+  return {
+    phone: '02112345678',
+    whatsapp: '6281234567890',
+    name: 'Layanan FinbankLink',
+    isFallback: true,
+  };
+}
+
 export default function Riwayat() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('aktif');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCallBankModal, setShowCallBankModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+  const [userMsgInput, setUserMsgInput] = useState('');
+  const [sendMsgLoading, setSendMsgLoading] = useState(false);
+
+  const handleCopyRef = (refCode) => {
+    navigator.clipboard.writeText(refCode);
+    setCopied(true);
+    toast.success('Nomor referensi berhasil disalin!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSendMessage = async (submissionId) => {
+    if (!userMsgInput.trim()) return;
+    setSendMsgLoading(true);
+    try {
+      await postUserSubmissionMessage(submissionId, userMsgInput.trim());
+      toast.success('Pesan terkirim ke petugas bank!');
+      setUserMsgInput('');
+      await load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Gagal mengirim pesan.');
+    } finally {
+      setSendMsgLoading(false);
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
@@ -317,6 +447,143 @@ export default function Riwayat() {
 
   return (
     <div className="flex gap-6 font-sans items-start relative">
+      {showCallBankModal && submission && (() => {
+        const refCode = submission.id;
+        const bankName = submission.nama_bank;
+        
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[28px] p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 relative text-gray-800 border border-gray-100">
+              
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowCallBankModal(false);
+                  setUserMsgInput('');
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition p-1.5 hover:bg-gray-50 rounded-full"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3 mx-auto border border-blue-100">
+                <MessageCircle className="w-5 h-5 text-[#4A90D9]" />
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 text-center">Hubungi Petugas {bankName}</h3>
+              <p className="text-xs text-gray-500 text-center mb-4 leading-relaxed max-w-xs mx-auto">
+                Kirim pesan langsung ke portal verifikasi bank untuk menanyakan kendala atau progres.
+              </p>
+
+              {/* Reference Box */}
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-3 mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">Referensi Pengajuan</p>
+                  <p className="text-xs font-mono font-bold text-gray-700 mt-0.5">{refCode}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyRef(refCode)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all duration-200 ${
+                    copied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 shadow-sm'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check size={12} />
+                      Disalin!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} />
+                      Salin
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Chat Thread */}
+              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 min-h-[160px] max-h-[240px] overflow-y-auto space-y-4 mb-4">
+                {!submission.user_message ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center py-6">
+                    <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
+                      Belum ada pesan terkirim. Silakan ketik pesan Anda di bawah ini untuk memulai.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Pesan Nasabah (User) */}
+                    <div className="flex flex-col items-end space-y-1">
+                      <div className="bg-[#4A90D9] text-white rounded-2xl rounded-tr-none px-4 py-2.5 text-xs max-w-[85%] shadow-sm leading-relaxed">
+                        {submission.user_message}
+                      </div>
+                      <span className="text-[9px] font-bold text-gray-400 mr-1">Anda</span>
+                    </div>
+
+                    {/* Balasan Bank */}
+                    {submission.bank_message ? (
+                      <div className="flex flex-col items-start space-y-1">
+                        <div className="bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-tl-none px-4 py-2.5 text-xs max-w-[85%] shadow-sm leading-relaxed">
+                          {submission.bank_message}
+                        </div>
+                        <span className="text-[9px] font-bold text-gray-400 ml-1">{bankName}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 w-fit">
+                        <Clock size={12} className="animate-pulse" />
+                        <span>Menunggu balasan dari petugas bank...</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Message Input Box */}
+              <div className="space-y-2">
+                <textarea
+                  value={userMsgInput}
+                  onChange={(e) => setUserMsgInput(e.target.value)}
+                  placeholder={submission.user_message ? "Ketik pesan baru untuk memperbarui..." : "Tulis pesan Anda untuk petugas bank di sini..."}
+                  className="w-full h-20 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#4A90D9] transition-all resize-none leading-relaxed"
+                  maxLength={1000}
+                />
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCallBankModal(false);
+                      setUserMsgInput('');
+                    }}
+                    className="flex-1 py-2.5 bg-gray-100 text-gray-600 font-bold text-xs rounded-xl hover:bg-gray-200 transition active:scale-95"
+                  >
+                    Tutup
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sendMsgLoading || !userMsgInput.trim()}
+                    onClick={() => handleSendMessage(submission.submission_id)}
+                    className="flex-1 py-2.5 bg-[#4A90D9] text-white font-bold text-xs rounded-xl hover:bg-[#3a7bc8] transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_12px_rgba(74,144,217,0.2)] flex items-center justify-center gap-1.5"
+                  >
+                    {sendMsgLoading ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        Mengirim...
+                      </>
+                    ) : (
+                      submission.user_message ? 'Perbarui Pesan' : 'Kirim Pesan'
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
       {showCancelConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -531,7 +798,8 @@ export default function Riwayat() {
                 <div className="space-y-2">
                   <button
                     type="button"
-                    className="w-full py-2.5 bg-[#4A90D9] text-white text-xs font-extrabold rounded-xl uppercase tracking-widest hover:bg-[#3a7bc8] transition"
+                    onClick={() => setShowCallBankModal(true)}
+                    className="w-full py-2.5 bg-[#4A90D9] text-white text-xs font-extrabold rounded-xl uppercase tracking-widest hover:bg-[#3a7bc8] transition active:scale-95"
                   >
                     Call bank
                   </button>

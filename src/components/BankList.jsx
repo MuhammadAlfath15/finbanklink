@@ -56,25 +56,25 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl bg-white"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-gray-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg}`}>
+        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg} dark:bg-slate-800`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-20`} />
           <div className="relative flex justify-between items-start">
             <div>
-              <h2 className={`text-xl font-bold ${textMain}`}>{bank.nama_bank}</h2>
-              <p className="text-sm font-semibold text-gray-700 mt-0.5">
+              <h2 className={`text-xl font-bold ${textMain} dark:text-white`}>{bank.nama_bank}</h2>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-0.5">
                 Nama Produk : {bank.nama_produk}
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
               {/* Shield icon */}
-              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain} dark:text-emerald-400`}>
                 <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.25C17.25 21.15 21 16.25 21 11V5l-9-4z" />
               </svg>
-              <span className="text-[10px] text-gray-500 font-black uppercase">Kecocokan</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Kecocokan</span>
               <span className="inline-block bg-[#2ECC71] text-white text-[11px] font-bold px-3 py-0.5 rounded-full shadow-sm">
                 {bank.skor_kecocokan}%
               </span>
@@ -88,10 +88,10 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
 
           {/* RINGKASAN PRODUK */}
           <section>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-2">
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
               Ringkasan Produk:
             </h3>
-            <ul className="space-y-1.5 text-sm text-gray-700">
+            <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
               <li className="flex items-start gap-2">
                 <span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />
                 Plafon: {formatRp(plafonMin)} – {formatRp(plafonMax)}
@@ -109,15 +109,15 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
 
           {/* SIMULASI PINJAMAN */}
           <section>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-2">
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
               Simulasi Pinjaman (Interaktif):
             </h3>
             <div className="space-y-3">
               {/* Slider pinjaman */}
               <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                   <span>Jumlah Pinjaman</span>
-                  <span className="font-bold text-gray-800">{formatRp(pinjaman)}</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-200">{formatRp(pinjaman)}</span>
                 </div>
                 <input
                   id={`slider-pinjaman-${bank.id}`}
@@ -129,7 +129,7 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
                   onChange={(e) => setPinjaman(Number(e.target.value))}
                   className="w-full accent-blue-600 h-1.5 rounded-full cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                   <span>{formatRp(plafonMin)}</span>
                   <span>{formatRp(plafonMax)}</span>
                 </div>
@@ -137,9 +137,9 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
 
               {/* Slider tenor */}
               <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                   <span>Tenor</span>
-                  <span className="font-bold text-gray-800">{tenor} Bulan</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-200">{tenor} Bulan</span>
                 </div>
                 <input
                   id={`slider-tenor-${bank.id}`}
@@ -151,26 +151,26 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
                   onChange={(e) => setTenor(Number(e.target.value))}
                   className="w-full accent-blue-600 h-1.5 rounded-full cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                   <span>{tenorMin} bln</span>
                   <span>{tenorMax} bln</span>
                 </div>
               </div>
 
               {/* Hasil estimasi */}
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex justify-between items-center">
-                <span className="text-xs text-blue-700 font-semibold">Estimasi Cicilan / Bulan</span>
-                <span className="text-base font-black text-blue-800">{formatRp(cicilanPerBulan)}</span>
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-700/50 rounded-xl px-4 py-3 flex justify-between items-center">
+                <span className="text-xs text-blue-700 dark:text-blue-300 font-semibold">Estimasi Cicilan / Bulan</span>
+                <span className="text-base font-black text-blue-800 dark:text-blue-200">{formatRp(cicilanPerBulan)}</span>
               </div>
             </div>
           </section>
 
           {/* SYARAT & KETENTUAN */}
           <section>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mb-2">
+            <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
               Syarat & Ketentuan:
             </h3>
-            <ul className="space-y-1.5 text-sm text-gray-700">
+            <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
               {syarat.map((s, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />
@@ -182,18 +182,18 @@ const DetailModal = ({ bank, onClose, onAjukan }) => {
         </div>
 
         {/* ── Footer ── */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 grid grid-cols-2 rounded-b-2xl">
+        <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 rounded-b-2xl">
           <button
             id={`btn-kembali-${bank.id}`}
             onClick={onClose}
-            className="py-4 text-sm font-bold text-gray-600 hover:text-gray-900 border-r border-gray-200 transition-colors"
+            className="py-4 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border-r border-gray-200 dark:border-gray-700 transition-colors"
           >
             Kembali
           </button>
           <button
             id={`btn-ajukan-modal-${bank.id}`}
             onClick={onAjukan}
-            className="py-4 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+            className="py-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
           >
             Ajukan Sekarang
           </button>

@@ -26,6 +26,28 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
+// Otomatis tangani error 401 (token kadaluarsa / tidak valid)
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      
+      // Arahkan ke halaman login yang sesuai
+      const path = window.location.pathname;
+      if (path.startsWith('/admin')) {
+        window.location.href = '/admin/login';
+      } else if (path.startsWith('/bank')) {
+        window.location.href = '/bank/login';
+      } else {
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 // Struktur ini ngikutin persis response dari AuthController & BankController
 
@@ -454,6 +476,19 @@ export const sendLoanOtp = async (bankId) => {
 };
 
 /**
+ * Generate & kirim OTP pengajuan pinjaman ke Email user
+ * @param {number} bankId
+ * @returns {{ status, message, email }}
+ */
+export const sendLoanOtpEmail = async (bankId) => {
+  if (USE_MOCK) {
+    return mockDelay({ status: 'success', message: 'OTP berhasil dikirim ke Email kamu.', email: 'u***r@example.com' });
+  }
+  const res = await http.post('/otp/send-loan-email', { bank_id: bankId });
+  return res.data;
+};
+
+/**
  * Verifikasi OTP pengajuan pinjaman
  * @param {string} otp  — 6 digit kode
  * @returns {{ status, message }}
@@ -510,13 +545,13 @@ const MOCK_BUSINESS_PROFILE = {
   has_bukti_pelunasan: false,
   omzet_bulan_ini: null,
   cicilan_berjalan: null,
-  skor_profitabilitas: 30,
-  skor_legalitas: 20,
-  skor_tren_omzet: 30,
-  skor_kolektibilitas: 70,
-  skor_keberlanjutan: 20,
-  skor_kapasitas_utang: 85,
-  skor_total: 255,
+  skor_profitabilitas: 0,
+  skor_legalitas: 0,
+  skor_tren_omzet: 0,
+  skor_kolektibilitas: 0,
+  skor_keberlanjutan: 0,
+  skor_kapasitas_utang: 0,
+  skor_total: 0,
   updated_at: null,
 };
 
@@ -716,5 +751,27 @@ export const deleteAccount = async (password) => {
     return mockDelay({ message: 'Akun berhasil dihapus.' });
   }
   const res = await http.delete('/account', { data: { password } });
+  return res.data;
+};
+
+/**
+ * Kirim pesan dari nasabah ke petugas bank
+ */
+export const postUserSubmissionMessage = async (submissionId, message) => {
+  if (USE_MOCK) {
+    return mockDelay({ message: 'Pesan berhasil dikirim (mock)' });
+  }
+  const res = await http.post(`/submissions/${submissionId}/message`, { message });
+  return res.data;
+};
+
+/**
+ * Kirim balasan dari petugas bank ke nasabah
+ */
+export const postBankSubmissionMessage = async (submissionId, message) => {
+  if (USE_MOCK) {
+    return mockDelay({ message: 'Balasan berhasil dikirim (mock)' });
+  }
+  const res = await http.post(`/bank/submissions/${submissionId}/message`, { message });
   return res.data;
 };

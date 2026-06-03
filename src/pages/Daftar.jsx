@@ -171,7 +171,7 @@ function Daftar() {
                 </div>
 
                 <div className="flex gap-4">
-                  <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-gray-300 text-gray-700 py-4 rounded-full font-bold">
+                  <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-gray-300 hover:bg-gray-400 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 py-4 rounded-full font-bold transition-colors">
                     Kembali
                   </button>
                   <button type="submit" className="w-full bg-blue-500 text-white py-4 rounded-full font-bold text-xl shadow-lg hover:bg-blue-600 transition-all">

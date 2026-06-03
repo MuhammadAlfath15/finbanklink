@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, RefreshCw, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
-import { sendLoanOtp, verifyLoanOtp } from '../services/api';
+import { ArrowLeft, MessageCircle, RefreshCw, CheckCircle2, AlertCircle, ShieldCheck, Mail } from 'lucide-react';
+import { sendLoanOtp, sendLoanOtpEmail, verifyLoanOtp } from '../services/api';
 
 const RESEND_COOLDOWN = 60; // detik — sesuai screenshot
 
@@ -38,6 +38,8 @@ const VerifikasiOTP = () => {
   const location    = useLocation();
   const bank        = location.state?.bank        ?? null;
   const maskedPhone = location.state?.maskedPhone ?? null;
+  const maskedEmail = location.state?.maskedEmail ?? null;
+  const method      = location.state?.method      ?? 'whatsapp';
 
   const [digits,    setDigits]    = useState(['', '', '', '', '', '']);
   const [status,    setStatus]    = useState('idle');   // idle | loading | success | error
@@ -143,7 +145,11 @@ const VerifikasiOTP = () => {
     setResending(true);
     setErrMsg('');
     try {
-      await sendLoanOtp();
+      if (method === 'email') {
+        await sendLoanOtpEmail(bank.id);
+      } else {
+        await sendLoanOtp(bank.id);
+      }
       setCountdown(RESEND_COOLDOWN);
       setDigits(['', '', '', '', '', '']);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -152,7 +158,7 @@ const VerifikasiOTP = () => {
     } finally {
       setResending(false);
     }
-  }, [countdown, resending]);
+  }, [countdown, resending, method, bank?.id]);
 
   /* ── Guard: jika tidak ada data bank ── */
   if (!bank) {
@@ -247,22 +253,45 @@ const VerifikasiOTP = () => {
             ) : (
               /* ── FORM STATE ── */
               <>
-                {/* Icon WA + deskripsi */}
+                {/* Icon + deskripsi */}
                 <div className="flex flex-col items-center mb-8">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                    style={{
-                      background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)',
-                      boxShadow: '0 6px 20px rgba(37,211,102,0.35)',
-                    }}
-                  >
-                    <MessageCircle className="text-white" size={28} fill="white" />
-                  </div>
+                  {method === 'email' ? (
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                      style={{
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                        boxShadow: '0 6px 20px rgba(59,130,246,0.35)',
+                      }}
+                    >
+                      <Mail className="text-white" size={28} />
+                    </div>
+                  ) : (
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                      style={{
+                        background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)',
+                        boxShadow: '0 6px 20px rgba(37,211,102,0.35)',
+                      }}
+                    >
+                      <MessageCircle className="text-white" size={28} fill="white" />
+                    </div>
+                  )}
 
                   <p className="text-sm text-gray-500 text-center leading-relaxed">
-                    Cek WhatsApp kamu buat verifikasi
-                    {maskedPhone && (
-                      <> ke nomor <span className="font-semibold text-gray-700">{maskedPhone}</span></>
+                    {method === 'email' ? (
+                      <>
+                        Cek Email kamu buat verifikasi
+                        {maskedEmail && (
+                          <> ke alamat email <span className="font-semibold text-gray-700">{maskedEmail}</span></>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Cek WhatsApp kamu buat verifikasi
+                        {maskedPhone && (
+                          <> ke nomor <span className="font-semibold text-gray-700">{maskedPhone}</span></>
+                        )}
+                      </>
                     )}
                   </p>
                 </div>

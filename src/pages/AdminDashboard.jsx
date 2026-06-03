@@ -247,7 +247,8 @@ export default function AdminDashboard() {
         setBankForm((prev) => ({ ...prev, category_ids: registered ? [registered.id] : [categoryRows[0].id] }));
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Gagal ambil data admin.');
+      console.error('Error loading admin dashboard data:', error);
+      toast.error(error?.response?.data?.message || error?.message || 'Gagal ambil data admin.');
     } finally {
       setLoading(false);
     }
@@ -2171,7 +2172,19 @@ export default function AdminDashboard() {
                             <span className="text-slate-400 italic">Belum ada dokumen yang diunggah</span>
                           ) : (
                             (u.documents || []).map((d, idx) => {
-                              const docLabel = d.type.toUpperCase().replace('_PATH', '').replace('_UPLOAD', '');
+                              const docLabels = {
+                                nib_path: 'NIB (Nomor Induk Berusaha)',
+                                npwp_path: 'NPWP',
+                                ktp_path: 'KTP',
+                                kk_path: 'Kartu Keluarga',
+                                selfie_ktp_path: 'Selfie dengan KTP',
+                                ttd_path: 'Tanda Tangan Digital',
+                                rekening_path: 'Rekening Koran',
+                                foto_usaha_path: 'Foto Tempat Usaha',
+                                kontrak_path: 'Kontrak Sewa / Bukti Kepemilikan',
+                                bukti_pelunasan_path: 'Bukti Pelunasan',
+                              };
+                              const docLabel = docLabels[d.type] || d.type.toUpperCase().replace('_PATH', '').replace('_UPLOAD', '');
                               
                               // Determine status badge
                               let statusBadge = null;

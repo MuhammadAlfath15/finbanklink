@@ -7,4 +7,7 @@ export default defineConfig({
     react(),
     tailwindcss(), // Tambahkan ini juga
   ],
+  define: {
+    global: 'globalThis',
+  },
 })

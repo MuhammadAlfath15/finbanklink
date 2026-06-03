@@ -138,24 +138,6 @@ function Login() {
               ) : 'Login'}
             </button>
           </form>
-
-          <div className="flex items-center my-8">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-4 text-gray-500 font-medium">Atau masuk dengan</span>
-            <div className="flex-1 border-t border-gray-300"></div>
-          </div>
-
-          {/* Ikon Social Login */}
-          <div className="flex justify-center gap-8">
-            {/* Ikon Google */}
-            <button className="p-3 bg-white border border-gray-100 shadow-sm rounded-full hover:scale-110 transition-transform">
-              <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="Google" className="w-8 h-8" />
-            </button>
-            {/* Ikon Apple */}
-            <button className="p-3 bg-white border border-gray-100 shadow-sm rounded-full hover:scale-110 transition-transform">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" className="w-8 h-8" />
-            </button>
-          </div>
         </div>
       </div>
 

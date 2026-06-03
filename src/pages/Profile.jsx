@@ -5,7 +5,7 @@ import {
   CheckCircle2, Lock, Bell, Globe, Eye, EyeOff, Shield, Trash2, ChevronDown, X, AlertTriangle, Moon, Sun,
   Activity, Landmark, Sparkles, TrendingUp, BadgeCheck, Clock,
 } from 'lucide-react';
-import { getProfile, updateProfile, getBusinessProfile, updateBusinessProfile, changePassword, deleteAccount } from '../services/api';
+import { getProfile, updateProfile, getBusinessProfile, updateBusinessProfile, changePassword } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
 import defaultAvatar from '../assets/profile_avatar.png';
@@ -511,85 +511,11 @@ const SettingRow = ({ icon: Icon, iconBg, label, desc, children, defaultOpen = f
   );
 };
 
-// Modal konfirmasi hapus akun
-const DeleteModal = ({ onClose, onConfirm }) => {
-  const [step, setStep] = useState(1); // step 1: peringatan, step 2: input password
-  const [pw, setPw] = useState('');
-  const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleDelete = async () => {
-    if (!pw) { toast.error('Masukkan password kamu.'); return; }
-    setLoading(true);
-    try {
-      await onConfirm(pw);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-[fadeInScale_0.2s_ease]">
-        <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        {step === 1 ? (
-          <>
-            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-5 mx-auto">
-              <AlertTriangle size={28} className="text-red-500" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Hapus Akun?</h3>
-            <p className="text-sm text-gray-500 text-center mb-1">Tindakan ini <strong className="text-red-500">tidak dapat dibatalkan</strong>. Seluruh data kamu akan dihapus permanen:</p>
-            <ul className="mt-4 space-y-2 mb-6">
-              {['Profil & informasi personal', 'Dokumen legalitas yang diunggah', 'Riwayat pengajuan pinjaman', 'Data keuangan & skor bisnis'].map((t, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />{t}
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Batal</button>
-              <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition">Ya, Lanjutkan</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-5 mx-auto">
-              <Lock size={24} className="text-red-500" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Konfirmasi Password</h3>
-            <p className="text-sm text-gray-500 text-center mb-6">Masukkan password akun kamu untuk konfirmasi penghapusan.</p>
-            <div className="flex items-center border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-red-200 bg-gray-50 mb-6">
-              <input
-                type={show ? 'text' : 'password'} value={pw}
-                onChange={e => setPw(e.target.value)}
-                placeholder="Password kamu"
-                className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-700 focus:outline-none"
-              />
-              <button type="button" onClick={() => setShow(v => !v)} className="px-3 text-gray-400">{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Kembali</button>
-              <button
-                onClick={handleDelete}
-                disabled={loading || !pw}
-                className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {loading && <Loader2 size={14} className="animate-spin" />}
-                {loading ? 'Menghapus...' : 'Hapus Akun'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const Pengaturan = () => {
   const navigate = useNavigate();
   const { isDark, toggleDark } = useTheme();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ── Ganti Password ──────────────────────────────────────────────────────────
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', new_password_confirmation: '' });
@@ -702,43 +628,10 @@ const Pengaturan = () => {
     toast.success('Preferensi disimpan');
   };
 
-  // ── Privasi Data ────────────────────────────────────────────────────────────
-  const PRIV_KEY = 'privacy_prefs';
-  const [priv, setPriv] = useState(() => {
-    try {
-      const stored = localStorage.getItem(PRIV_KEY);
-      return stored ? JSON.parse(stored) : { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
-    } catch {
-      return { profil_publik: true, skor_publik: true, analitik: true, akses_dokumen: true };
-    }
-  });
-  const privItems = [
-    { key: 'profil_publik', label: 'Matchmaking Usaha Terenkripsi', desc: 'Bank mitra dapat mencocokkan kriteria mereka dengan usahamu secara anonim. Nama & kontak dibagikan hanya jika kamu menyetujui penawaran' },
-    { key: 'analitik', label: 'Analitik Anonim Kinerja Platform', desc: 'Kirim data analitik interaksi terenkripsi tanpa menyertakan dokumen finansial untuk optimasi sistem' },
-  ];
-  const togglePriv = (key, val) => {
-    const next = { ...priv, [key]: val };
-    setPriv(next);
-    localStorage.setItem(PRIV_KEY, JSON.stringify(next));
-    toast.success(`Preferensi privasi diperbarui`);
-  };
 
-  // ── Hapus Akun ──────────────────────────────────────────────────────────────
-  const handleDeleteConfirm = async (password) => {
-    try {
-      await deleteAccount(password);
-      toast.success('Akun berhasil dihapus. Sampai jumpa!');
-      setShowDeleteModal(false);
-      setTimeout(() => { localStorage.clear(); navigate('/login'); }, 1500);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Gagal menghapus akun.');
-    }
-  };
 
   return (
     <>
-      {showDeleteModal && <DeleteModal onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteConfirm} />}
-
       <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
         <div className="mb-7">
           <h2 className="text-2xl font-bold text-gray-800 mb-1">Pengaturan</h2>
@@ -852,44 +745,6 @@ const Pengaturan = () => {
             </div>
           </SettingRow>
 
-          {/* Privasi Data */}
-          <SettingRow icon={Shield} iconBg="bg-amber-500" label="Privasi Data" desc="Kelola siapa yang bisa melihat datamu">
-            <div className="space-y-1 mt-3">
-              {privItems.map(item => (
-                <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">{item.label}</p>
-                    <p className="text-xs text-gray-400">{item.desc}</p>
-                  </div>
-                  <ToggleSwitch id={`priv-${item.key}`} checked={priv[item.key] ?? true} onChange={val => togglePriv(item.key, val)} />
-                </div>
-              ))}
-              <div className="pt-3">
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Data kamu disimpan secara aman dan tidak dibagikan ke pihak ketiga di luar mitra bank terpercaya kami. Baca <span className="text-blue-500 underline cursor-pointer">Kebijakan Privasi</span> kami untuk detail lebih lanjut.
-                </p>
-              </div>
-            </div>
-          </SettingRow>
-
-          {/* Hapus Akun */}
-          <SettingRow icon={Trash2} iconBg="bg-red-50 border border-red-200" label="Hapus Akun" desc="Hapus permanen akun dan seluruh data kamu" danger>
-            <div className="mt-3 space-y-4">
-              <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-                <p className="text-sm text-red-700 font-medium mb-1">⚠️ Peringatan</p>
-                <p className="text-xs text-red-600 leading-relaxed">
-                  Penghapusan akun bersifat permanen dan tidak dapat dipulihkan. Semua dokumen, riwayat pengajuan, dan data bisnis kamu akan hilang selamanya.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="px-6 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition flex items-center gap-2"
-              >
-                <Trash2 size={15} /> Hapus Akun Permanen
-              </button>
-            </div>
-          </SettingRow>
 
         </div>
       </div>
@@ -982,6 +837,8 @@ const DataKeuangan = ({ onBusinessUpdated }) => {
               hint="PDF/JPG maks. 5MB — mempengaruhi skor Profitabilitas"
               file={rekeningFile}
               hasExisting={bp?.has_rekening}
+              status={bp?.document_statuses?.['rekening_path']}
+              feedback={bp?.document_feedbacks?.['rekening_path']}
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => setRekeningFile(e.target.files?.[0])}
             />
@@ -1024,6 +881,8 @@ const DataKeuangan = ({ onBusinessUpdated }) => {
               hint="PDF/JPG maks. 5MB"
               file={buktiFile}
               hasExisting={bp?.has_bukti_pelunasan}
+              status={bp?.document_statuses?.['bukti_pelunasan_path']}
+              feedback={bp?.document_feedbacks?.['bukti_pelunasan_path']}
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => setBuktiFile(e.target.files?.[0])}
             />
@@ -1056,7 +915,6 @@ const InfoUmum = ({ onBusinessUpdated }) => {
     bidang_usaha: '',
     alamat_usaha: '',
     lama_usaha: '',
-    omzet_bulan_ini: '',
     jumlah_karyawan: '',
   });
   const [loading, setLoading] = useState(true);
@@ -1071,7 +929,6 @@ const InfoUmum = ({ onBusinessUpdated }) => {
           bidang_usaha: data.bidang_usaha || '',
           alamat_usaha: data.alamat_usaha || '',
           lama_usaha: data.lama_usaha || '',
-          omzet_bulan_ini: data.omzet_bulan_ini ? formatRupiah(data.omzet_bulan_ini) : '',
           jumlah_karyawan: data.jumlah_karyawan || '',
         });
         onBusinessUpdated?.(data);
@@ -1086,11 +943,7 @@ const InfoUmum = ({ onBusinessUpdated }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'omzet_bulan_ini') {
-      setForm({ ...form, [name]: formatRupiah(parseRupiah(value)) });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
+    setForm({ ...form, [name]: value });
   };
 
   const handleSave = async () => {
@@ -1102,9 +955,6 @@ const InfoUmum = ({ onBusinessUpdated }) => {
       fd.append('alamat_usaha', form.alamat_usaha);
       fd.append('lama_usaha', form.lama_usaha);
       fd.append('jumlah_karyawan', form.jumlah_karyawan);
-
-      const oz = parseRupiah(form.omzet_bulan_ini);
-      if (oz) fd.append('omzet_bulan_ini', oz);
 
       const res = await updateBusinessProfile(fd);
       onBusinessUpdated?.(res.data);
@@ -1134,7 +984,6 @@ const InfoUmum = ({ onBusinessUpdated }) => {
           { label: 'Bidang Usaha', name: 'bidang_usaha', placeholder: 'Contoh: Perdagangan, Kuliner, Jasa...', type: 'text' },
           { label: 'Alamat Usaha', name: 'alamat_usaha', placeholder: 'Jl. Contoh No. 1, Kota...', type: 'text' },
           { label: 'Lama Usaha Berjalan', name: 'lama_usaha', placeholder: 'Contoh: 2 Tahun 3 Bulan', type: 'text' },
-          { label: 'Omzet Per Bulan (estimasi)', name: 'omzet_bulan_ini', placeholder: 'Contoh: Rp 10.000.000', type: 'text' },
           { label: 'Jumlah Karyawan', name: 'jumlah_karyawan', placeholder: 'Contoh: 5 orang', type: 'text' },
         ].map((f, i) => (
           <div key={i} className="space-y-1.5">

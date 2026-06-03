@@ -57,15 +57,15 @@ const DetailModal = ({ bank, onClose, onAjukan, pendingDocsCount }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg}`}>
+        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg} dark:bg-slate-800`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-20`} />
           <div className="relative flex justify-between items-start">
             <div>
-              <h2 className={`text-xl font-bold ${textMain}`}>{bank.nama_bank}</h2>
+              <h2 className={`text-xl font-bold ${textMain} dark:text-white`}>{bank.nama_bank}</h2>
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-0.5">Nama Produk : {bank.nama_produk}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain} dark:text-emerald-400`}>
                 <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.25C17.25 21.15 21 16.25 21 11V5l-9-4z" />
               </svg>
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Kecocokan</span>

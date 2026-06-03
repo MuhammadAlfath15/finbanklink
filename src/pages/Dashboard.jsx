@@ -4,6 +4,7 @@ import { Search, Star, TrendingDown, TrendingUp, CheckCircle, Edit3, X, UploadCl
 import { getOmzet, saveOmzet, getBusinessProfile, getMySubmissions, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getPublicAds, getPublicArticles, getBanks } from '../services/api';
 import { getDashboardSubmissionCardCopy, pickActiveSubmission } from '../utils/submissionProgress';
 import { toast } from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 // ─── Data & Helpers ───────────────────────────────────────────────────────────
 
@@ -74,15 +75,15 @@ function DetailModal({ bank, onClose, onAjukan }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg}`}>
+        <div className={`relative overflow-hidden rounded-t-2xl px-5 pt-5 pb-4 ${cardBg} dark:bg-slate-800`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-20`} />
           <div className="relative flex justify-between items-start">
             <div>
-              <h2 className={`text-xl font-bold ${textMain}`}>{bank.nama_bank}</h2>
+              <h2 className={`text-xl font-bold ${textMain} dark:text-white`}>{bank.nama_bank}</h2>
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-0.5">Nama Produk : {bank.nama_produk}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 ${textMain} dark:text-emerald-400`}>
                 <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.25C17.25 21.15 21 16.25 21 11V5l-9-4z" />
               </svg>
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Kecocokan</span>
@@ -412,6 +413,9 @@ export default function Dashboard() {
       const subject = (n.subject || '').toLowerCase();
       const msg = n.message.toLowerCase();
 
+      // Bypass settings filter for critical audit notifications from admin
+      if (subject === 'audit' || title.includes('audit')) return true;
+
       // 1. Status Pengajuan Pinjaman
       const isLoanUpdate = title.includes('bank') || subject.includes('pengajuan') || msg.includes('pengajuan') || subject.includes('status');
       if (isLoanUpdate && !isEmailPengajuanEnabled) return false;
@@ -566,29 +570,214 @@ export default function Dashboard() {
       setIsSaving(false);
     }
   };
+  
+  const downloadTemplate = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "Bulan,Omzet\n"
+      + "Januari,15000000\n"
+      + "Februari,18000000\n"
+      + "Maret,22000000\n"
+      + "April,20000000\n"
+      + "Mei,25000000\n"
+      + "Juni,27000000\n"
+      + "Juli,24000000\n"
+      + "Agustus,28000000\n"
+      + "September,30000000\n"
+      + "Oktober,32000000\n"
+      + "November,35000000\n"
+      + "Desember,40000000\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_omzet_bulanan.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const parseCSV = (text) => {
+    const lines = text.split(/\r?\n/);
+    const rows = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = line.split(/[,;]/).map(c => c.replace(/^["']|["']$/g, '').trim());
+      rows.push(cols);
+    }
+    return rows;
+  };
+
+  const matchMonth = (val) => {
+    if (!val) return -1;
+    const s = String(val).toLowerCase().trim();
+    if (/^\d+$/.test(s)) {
+      const n = parseInt(s, 10);
+      if (n >= 1 && n <= 12) return n - 1;
+    }
+    if (s.includes('jan')) return 0;
+    if (s.includes('feb')) return 1;
+    if (s.includes('mar') || s.includes('mrt')) return 2;
+    if (s.includes('apr')) return 3;
+    if (s.includes('mei') || s.includes('may')) return 4;
+    if (s.includes('jun')) return 5;
+    if (s.includes('jul')) return 6;
+    if (s.includes('agu') || s.includes('aug')) return 7;
+    if (s.includes('sep')) return 8;
+    if (s.includes('okt') || s.includes('oct')) return 9;
+    if (s.includes('nov')) return 10;
+    if (s.includes('des') || s.includes('dec')) return 11;
+
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.getMonth();
+    }
+    const dateMatch = s.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/) || s.match(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b/);
+    if (dateMatch) {
+      const possibleMonth = parseInt(dateMatch[2], 10);
+      if (possibleMonth >= 1 && possibleMonth <= 12) return possibleMonth - 1;
+    }
+    return -1;
+  };
+
+  const parseNumber = (val) => {
+    if (val === null || val === undefined) return 0;
+    const s = String(val).replace(/[^0-9,-]/g, '').replace(',', '.');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setUploadFile(file);
-      processSimulatedFile();
-    }
-  };
+    if (!file) return;
 
-  const processSimulatedFile = () => {
+    setUploadFile(file);
     setIsProcessing(true);
     setProcessStep(1);
 
-    // Simulate steps
-    setTimeout(() => setProcessStep(2), 1500); // Menganalisis file
-    setTimeout(() => setProcessStep(3), 3000); // Memvalidasi transaksi
-    setTimeout(() => {
-      setProcessStep(4); // Selesai
+    const reader = new FileReader();
+    const fileType = file.name.split('.').pop().toLowerCase();
+
+    reader.onload = (evt) => {
+      try {
+        let rows = [];
+        if (fileType === 'csv') {
+          const text = evt.target.result;
+          rows = parseCSV(text);
+        } else if (fileType === 'xlsx' || fileType === 'xls') {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } else {
+          throw new Error('Ekstensi file tidak didukung. Silakan gunakan Excel (.xlsx/.xls) atau CSV.');
+        }
+
+        if (!rows || rows.length === 0) {
+          throw new Error('File kosong atau tidak dapat dibaca.');
+        }
+
+        // Find headers
+        let headerRowIdx = -1;
+        let monthColIdx = -1;
+        let turnoverColIdx = -1;
+
+        const searchLimit = Math.min(15, rows.length);
+        for (let i = 0; i < searchLimit; i++) {
+          const row = rows[i];
+          if (!row || !Array.isArray(row)) continue;
+          
+          let hasMonthHeader = -1;
+          let hasTurnoverHeader = -1;
+
+          for (let j = 0; j < row.length; j++) {
+            const cell = String(row[j] || '').toLowerCase().trim();
+            if (/^(bulan|month|periode|period|tanggal|date|tgl|waktu|time)$/i.test(cell)) {
+              hasMonthHeader = j;
+            }
+            if (/^(omzet|omset|turnover|pendapatan|revenue|penjualan|sales|total|kredit|credit|mutasi|amount|jumlah|pemasukan)$/i.test(cell)) {
+              hasTurnoverHeader = j;
+            }
+          }
+
+          if (hasMonthHeader !== -1 && hasTurnoverHeader !== -1) {
+            headerRowIdx = i;
+            monthColIdx = hasMonthHeader;
+            turnoverColIdx = hasTurnoverHeader;
+            break;
+          }
+        }
+
+        if (headerRowIdx === -1) {
+          throw new Error('Format kolom tidak valid. File harus memiliki kolom "Bulan" (atau "Month"/"Tanggal") dan "Omzet" (atau "Turnover"/"Pendapatan"/"Kredit").');
+        }
+
+        // Extract monthly data
+        const monthlySums = Array(12).fill(0);
+        let validRowsCount = 0;
+
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length <= Math.max(monthColIdx, turnoverColIdx)) continue;
+
+          const rawMonth = row[monthColIdx];
+          const rawAmount = row[turnoverColIdx];
+
+          const mIdx = matchMonth(rawMonth);
+          const amt = parseNumber(rawAmount);
+
+          if (mIdx !== -1 && amt > 0) {
+            monthlySums[mIdx] += amt;
+            validRowsCount++;
+          }
+        }
+
+        if (validRowsCount === 0) {
+          throw new Error('Tidak ada data omzet yang valid ditemukan di bawah baris judul kolom.');
+        }
+
+        // Simulasikan progress bar dengan data riil demi user experience premium
+        setTimeout(() => {
+          setProcessStep(2); // Menganalisis file
+          setTimeout(() => {
+            setProcessStep(3); // Memvalidasi transaksi
+            setTimeout(() => {
+              setProcessStep(4); // Selesai
+              setIsProcessing(false);
+
+              // Skalakan data sehingga nilai maksimum bernilai 100
+              const maxVal = Math.max(...monthlySums);
+              const scaled = maxVal > 0 
+                ? monthlySums.map(v => Math.round((v / maxVal) * 100))
+                : Array(12).fill(0);
+
+              setTempOmzet(scaled);
+            }, 1000);
+          }, 1000);
+        }, 1000);
+
+      } catch (err) {
+        setIsProcessing(false);
+        setUploadFile(null);
+        setProcessStep(0);
+        toast.error(err.message || 'Gagal memproses file.');
+      }
+    };
+
+    reader.onerror = () => {
       setIsProcessing(false);
-      // Generate realistic extracted omzet data
-      const extracted = Array.from({ length: 12 }, () => Math.floor(Math.random() * 40) + 40);
-      setTempOmzet(extracted);
-    }, 4500);
+      setUploadFile(null);
+      setProcessStep(0);
+      toast.error('Gagal membaca file.');
+    };
+
+    if (fileType === 'csv') {
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   // Reset adIndex ke 0 setiap kali ads berubah (hindari NaN akibat % 0)
@@ -1337,7 +1526,7 @@ export default function Dashboard() {
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="text-blue-600" size={20} />
+                <ShieldCheck className="text-blue-600 dark:text-blue-400" size={20} />
                 <h3 className="font-bold text-gray-800">Verifikasi Omzet Otomatis</h3>
               </div>
               {!isProcessing && (
@@ -1362,12 +1551,38 @@ export default function Dashboard() {
                       onChange={handleFileUpload}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className="border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-blue-50 transition-colors">
-                      <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 shadow-sm">
+                    <div className="border-2 border-dashed border-blue-200 dark:border-blue-800/80 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors">
+                      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-3 shadow-sm">
                         <UploadCloud size={24} />
                       </div>
-                      <p className="text-sm font-bold text-gray-700 mb-1">Unggah Laporan Excel / CSV</p>
-                      <p className="text-[10px] text-gray-500 font-medium">Seret dan lepas file ke sini atau klik untuk mencari</p>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Unggah Laporan Excel / CSV</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Seret dan lepas file ke sini atau klik untuk mencari</p>
+                    </div>
+                  </div>
+
+                  {/* Kriteria & Template Download */}
+                  <div className="bg-blue-50/30 dark:bg-blue-950/10 border border-blue-100/50 dark:border-blue-900/30 rounded-xl p-3.5 space-y-2">
+                    <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Format File yang Didukung</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                      Sistem membaca baris kolom otomatis. Pastikan file Excel/CSV memiliki judul kolom:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] bg-white dark:bg-gray-800/50 p-2 rounded-lg border border-gray-100 dark:border-slate-800/40 font-mono">
+                      <div>
+                        <span className="text-slate-400">Kolom 1:</span> <span className="font-bold text-slate-700 dark:text-slate-300">Bulan / Tanggal</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Kolom 2:</span> <span className="font-bold text-slate-700 dark:text-slate-300">Omzet / Kredit</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1.5 border-t border-gray-100 dark:border-slate-800/40">
+                      <span className="text-[9px] text-gray-400 leading-tight">Gunakan template resmi untuk hasil terbaik:</span>
+                      <button 
+                        onClick={downloadTemplate}
+                        type="button"
+                        className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-lg transition-colors border border-blue-100/50 dark:border-blue-900/30 shadow-sm"
+                      >
+                        📥 Unduh Template CSV
+                      </button>
                     </div>
                   </div>
 
@@ -1378,17 +1593,17 @@ export default function Dashboard() {
                   </div>
 
                   {/* Connect POS Area */}
-                  <button className="w-full border border-gray-200 bg-white rounded-xl p-4 flex items-center justify-between hover:border-blue-300 hover:shadow-sm transition-all group">
+                  <button className="w-full border border-gray-200 dark:border-gray-700 bg-white rounded-xl p-4 flex items-center justify-between hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-sm transition-all group">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                        <LinkIcon size={18} className="text-gray-600 group-hover:text-blue-600" />
+                      <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <LinkIcon size={18} className="text-gray-600 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                       </div>
                       <div className="text-left">
                         <p className="text-xs font-bold text-gray-800">Hubungkan Sistem POS / ERP</p>
                         <p className="text-[10px] text-gray-500">Moka, Majoo, Pawoon, dll</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">Segera Hadir</span>
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md">Segera Hadir</span>
                   </button>
                 </div>
               ) : (

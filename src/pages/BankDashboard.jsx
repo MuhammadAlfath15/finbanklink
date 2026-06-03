@@ -3,10 +3,10 @@ import {
   FileText, Clock, CheckCircle, XCircle, Search,
   Filter, ChevronRight, Download, Building,
   CreditCard, Activity, ExternalLink, Loader2, ChevronDown,
-  Lock, Shield,
+  Lock, Shield, MessageCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { getBankSubmissions, getBankSubmission, updateBankSubmissionStatus } from '../services/api';
+import { getBankSubmissions, getBankSubmission, updateBankSubmissionStatus, postBankSubmissionMessage } from '../services/api';
 import OmzetLineChart from '../components/OmzetLineChart';
 
 const formatRp = (angka) =>
@@ -152,6 +152,26 @@ export default function BankDashboard() {
     return Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
   }, [filteredData.length]);
 
+  const [replyLoading, setReplyLoading] = useState(false);
+
+  const handleSendReply = async () => {
+    if (!adminMessage.trim()) return;
+    setReplyLoading(true);
+    try {
+      await postBankSubmissionMessage(d.submission_id, adminMessage.trim());
+      toast.success('Balasan berhasil dikirim!');
+      setDetail(prev => ({
+        ...prev,
+        bank_message: adminMessage.trim()
+      }));
+      await loadList();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Gagal mengirim balasan.');
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+
   const openDetail = async (item) => {
     setSelectedRequest(item);
     setDetail(null);
@@ -161,6 +181,9 @@ export default function BankDashboard() {
     try {
       const d = await getBankSubmission(item.submission_id);
       setDetail(d);
+      if (d?.bank_message) {
+        setAdminMessage(d.bank_message);
+      }
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Gagal memuat detail pengajuan.');
     } finally {
@@ -700,17 +723,51 @@ export default function BankDashboard() {
                       )}
                     </div>
 
+                    {/* Pesan dari Nasabah (jika ada) */}
+                    {d?.user_message && (
+                      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 mt-6">
+                        <h3 className="text-sm font-extrabold text-blue-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <MessageCircle size={16} className="text-blue-500" />
+                          💬 Pesan dari Nasabah
+                        </h3>
+                        <div className="bg-white border border-blue-100/50 rounded-xl p-3.5 text-sm text-gray-700 leading-relaxed shadow-sm">
+                          {d.user_message}
+                        </div>
+                      </div>
+                    )}
+
                     {['Menunggu', 'Verifikasi', 'Survei'].includes(selectedRequest.status) && (
                       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mt-6">
                         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                          📝 Catatan untuk Nasabah (Opsional)
+                          📝 Catatan / Balasan untuk Nasabah
                         </h3>
                         <textarea
                           value={adminMessage}
                           onChange={(e) => setAdminMessage(e.target.value)}
-                          placeholder="Masukkan alasan, syarat tambahan, atau pesan lainnya ke nasabah..."
+                          placeholder="Masukkan alasan, syarat tambahan, atau pesan balasan lainnya ke nasabah..."
                           className="w-full h-32 p-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all resize-none"
                         ></textarea>
+                        
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            disabled={replyLoading || !adminMessage.trim()}
+                            onClick={handleSendReply}
+                            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition active:scale-95 disabled:opacity-50 flex items-center gap-1.5 shadow-md shadow-blue-600/10"
+                          >
+                            {replyLoading ? (
+                              <>
+                                <Loader2 size={12} className="animate-spin" />
+                                Mengirim...
+                              </>
+                            ) : (
+                              <>
+                                <MessageCircle size={12} fill="white" />
+                                Kirim Balasan / Catatan
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1,1 +1,5 @@
-coba bikin kaya gini, angka skor kesehatan tidak akan muncul langsung ketika user baru menginput berkas berkas yang dibutuhkan untuk melengkapi skor kesehatan. tetapi ada tahapnya yaitu user harus menunggu dulu sampai admin mengaudit berkasnya apakah berkas ini sesuai dengan apa yang diminta oleh webnya. misal user baru input NIB, NPWP, dll, maka statusnya masih pending, admin harus mengauditnya terlebih dahulu, nanti ketika admin sudah mengauditnya nanti statusnya akan menjadi approved, baru nanti skor kesehatan akan muncul.
+untuk validasi omzet otomatis ini sistemnya dibikin lebih akurat lagi ngebacanya. system harus tau juga isi dari excel yang di input apakah isinya beneran data omzet atau tidak. jika isinya bukan data omzet harus ada otoritas dari systemnya agar user tidak asal masukkan file excel atau semacamnya.
+
+karena saya udah coba berulang kali walaupun isi dari excelnya tidak sesuai tetap saja system membaca dan menggenerate grafiknya. dan saya juga coba 1 file excel yang sama di up berkali kali hasil grafiknya tidak konsisten. coba kasih minimal contoh kriteria atau format dari file nya harus bagaimana.
+
+atau lu punya ide yang lebih masuk akal? gua lebih menghargai itu sih gua sangat menghargai setiap improvisasi yang lu lakuin.
